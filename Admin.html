@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BRASAS DP – Acessos Admissão</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+    .header {
+      background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+      color: #fff; padding: 24px 32px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .header p  { font-size: 13px; opacity: 0.75; margin-top: 4px; }
+    .container { max-width: 900px; margin: 0 auto; padding: 28px 20px; }
+
+    .card { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .card-titulo { font-size: 15px; font-weight: 700; color: #1a237e; padding-bottom: 14px; margin-bottom: 20px; border-bottom: 2px solid #e8eaf6; }
+
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px; }
+    .form-group label { font-size: 13px; font-weight: 600; color: #444; }
+    .form-group input, .form-group select {
+      padding: 10px 13px; border: 1.5px solid #ddd; border-radius: 7px;
+      font-size: 14px; background: #fff; color: #333;
+      transition: border-color .18s;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none; border-color: #3949ab; box-shadow: 0 0 0 3px rgba(57,73,171,.12);
+    }
+    .btn-gerar {
+      padding: 10px 24px; background: #1a237e; color: #fff;
+      border: none; border-radius: 7px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .18s; align-self: flex-end; white-space: nowrap;
+    }
+    .btn-gerar:hover { background: #283593; }
+    .btn-gerar:disabled { background: #9fa8da; cursor: not-allowed; }
+
+    .resultado {
+      margin-top: 16px; padding: 14px 18px; border-radius: 8px;
+      font-size: 14px; display: none;
+    }
+    .resultado.sucesso { background: #e8f5e9; border-left: 4px solid #2e7d32; color: #1b5e20; }
+    .resultado.erro    { background: #ffebee; border-left: 4px solid #c62828; color: #b71c1c; }
+    .resultado .link-gerado { font-family: monospace; font-size: 12px; word-break: break-all; margin-top: 8px; padding: 8px; background: rgba(0,0,0,.05); border-radius: 4px; }
+    .btn-copiar {
+      margin-top: 10px; padding: 7px 16px; background: #fff; border: 1.5px solid #2e7d32;
+      color: #2e7d32; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600;
+    }
+    .btn-copiar:hover { background: #e8f5e9; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #e8eaf6; color: #1a237e; font-weight: 700; padding: 10px 12px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 10px; }
+    .badge-pendente { background: #fff8e1; color: #f57f17; }
+    .badge-usado    { background: #f5f5f5; color: #999; }
+
+    .btn-copiar-link {
+      padding: 4px 12px; background: #e8eaf6; border: none; border-radius: 5px;
+      font-size: 12px; color: #1a237e; cursor: pointer; font-weight: 600;
+    }
+    .btn-copiar-link:hover { background: #c5cae9; }
+
+    .vazio { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
+    .loading { text-align: center; color: #888; padding: 20px; font-size: 14px; }
+    .refresh-btn { background: none; border: none; color: #3949ab; cursor: pointer; font-size: 13px; font-weight: 600; margin-left: 12px; }
+    .refresh-btn:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>BRASAS DP – Controle de Acessos</h1>
+  <p>Painel administrativo – Pré-Admissão</p>
+</div>
+
+<div class="container">
+
+  <!-- Gerar novo token -->
+  <div class="card">
+    <div class="card-titulo">Gerar novo link de acesso</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label for="nomeCandidato">Nome do candidato</label>
+        <input type="text" id="nomeCandidato" placeholder="Ex: João da Silva">
+      </div>
+      <div class="form-group" style="flex:2">
+        <label for="selectUnidade">Unidade</label>
+        <select id="selectUnidade">
+          <option value="">— Selecione —</option>
+          <option value="Kansas Assessoria Linguística Ltda|Botafogo">Botafogo</option>
+          <option value="BRASAS On Demand Assessoria Linguística Ltda|BRASAS On Demand">BRASAS On Demand</option>
+          <option value="NS Assessoria Linguística Ltda|Cachambi">Cachambi</option>
+          <option value="CG Assessoria Linguística Ltda|Campo Grande">Campo Grande</option>
+          <option value="The West School Of English Ltda|Copacabana">Copacabana</option>
+          <option value="Caxias Assessoria Linguística Ltda|Caxias">Caxias</option>
+          <option value="DT Assessoria Linguística Ltda|Downtown">Downtown</option>
+          <option value="Editora Eficiencia Ltda|Editora">Editora</option>
+          <option value="Ec New Assessoria Linguística Ltda|EC">EC</option>
+          <option value="FG Assessoria Linguística Ltda|Freguesia">Freguesia</option>
+          <option value="GR Assessoria Linguística Ltda|Grajaú">Grajaú</option>
+          <option value="Cambaúba Assessoria Linguística Ltda|Ilha do Governador">Ilha do Governador</option>
+          <option value="New Concepts Assessoria Linguística Ltda|Ipanema">Ipanema</option>
+          <option value="IT Assessoria Linguística Ltda|Itaipu">Itaipu</option>
+          <option value="LJ Assessoria Linguística Ltda|Laranjeiras">Laranjeiras</option>
+          <option value="MRI Assessoria Linguística Ltda|Méier">Méier</option>
+          <option value="Métodos de Ensino Brasas Ltda|Métodos">Métodos</option>
+          <option value="NI Assessoria Linguística Ltda|Nova Iguaçu">Nova Iguaçu</option>
+          <option value="NT Assessoria Linguística Ltda|Niterói">Niterói</option>
+          <option value="Bal Barra Assessoria Linguística Ltda|Novo Leblon">Novo Leblon</option>
+          <option value="P.O Assessoria Linguística Ltda|Parque Olímpico">Parque Olímpico</option>
+          <option value="PC Assessoria Linguística Ltda|Pechincha">Pechincha</option>
+          <option value="PN Assessoria Linguística Ltda|Península">Península</option>
+          <option value="RC Assessoria Linguística Ltda|Recreio">Recreio</option>
+          <option value="TQ Assessoria Linguística Ltda|Taquara">Taquara</option>
+          <option value="TJ Assessoria Linguística Ltda|Tijuca">Tijuca</option>
+          <option value="VP Assessoria Linguística Ltda|Vila da Penha">Vila da Penha</option>
+          <option value="BCSP Assessoria Linguística Ltda|Vila Olímpia">Vila Olímpia</option>
+          <option value="Lexicon Assessoria Linguística Ltda|Vila Valqueire">Vila Valqueire</option>
+        </select>
+      </div>
+      <button class="btn-gerar" id="btnGerar" onclick="gerarToken()">Gerar link</button>
+    </div>
+
+    <div class="resultado" id="resultado">
+      <strong id="resultadoTitulo"></strong>
+      <div class="link-gerado" id="linkGerado"></div>
+      <button class="btn-copiar" onclick="copiarLink()">Copiar link</button>
+    </div>
+  </div>
+
+  <!-- Tabela de tokens -->
+  <div class="card">
+    <div class="card-titulo">
+      Links gerados
+      <button class="refresh-btn" onclick="carregarTokens()">↻ Atualizar</button>
+    </div>
+    <div id="tabelaContainer"><div class="loading">Carregando...</div></div>
+  </div>
+
+</div>
+
+<script>
+  var _ultimoLink = '';
+
+  function gerarToken() {
+    var candidato = document.getElementById('nomeCandidato').value.trim();
+    var unidadeVal = document.getElementById('selectUnidade').value;
+
+    if (!candidato || !unidadeVal) {
+      mostrarResultado(false, 'Preencha o nome do candidato e selecione a unidade.');
+      return;
+    }
+
+    var partes = unidadeVal.split('|');
+    var unidadeId   = partes[0];
+    var unidadeNome = partes[1];
+
+    var btn = document.getElementById('btnGerar');
+    btn.disabled = true;
+    btn.textContent = 'Gerando...';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'Gerar link';
+        _ultimoLink = res.url;
+        mostrarResultado(true, 'Link gerado para <strong>' + candidato + '</strong> — ' + unidadeNome + ':');
+        document.getElementById('linkGerado').textContent = res.url;
+        document.getElementById('nomeCandidato').value = '';
+        document.getElementById('selectUnidade').value = '';
+        carregarTokens();
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Gerar link';
+        mostrarResultado(false, 'Erro ao gerar token: ' + err.message);
+      })
+      .criarToken(candidato, unidadeId, unidadeNome);
+  }
+
+  function mostrarResultado(sucesso, html) {
+    var div = document.getElementById('resultado');
+    div.className = 'resultado ' + (sucesso ? 'sucesso' : 'erro');
+    div.style.display = 'block';
+    document.getElementById('resultadoTitulo').innerHTML = html;
+    if (!sucesso) document.getElementById('linkGerado').textContent = '';
+  }
+
+  function copiarLink() {
+    if (!_ultimoLink) return;
+    navigator.clipboard.writeText(_ultimoLink).then(function() {
+      var btn = document.querySelector('.btn-copiar');
+      btn.textContent = 'Copiado!';
+      setTimeout(function() { btn.textContent = 'Copiar link'; }, 2000);
+    });
+  }
+
+  function copiarLinkTabela(link) {
+    navigator.clipboard.writeText(link).then(function() {});
+    var btns = document.querySelectorAll('.btn-copiar-link');
+    btns.forEach(function(b) {
+      if (b.getAttribute('data-link') === link) {
+        b.textContent = 'Copiado!';
+        setTimeout(function() { b.textContent = 'Copiar'; }, 2000);
+      }
+    });
+  }
+
+  function carregarTokens() {
+    document.getElementById('tabelaContainer').innerHTML = '<div class="loading">Carregando...</div>';
+    google.script.run
+      .withSuccessHandler(renderizarTabela)
+      .withFailureHandler(function(err) {
+        document.getElementById('tabelaContainer').innerHTML =
+          '<div class="vazio">Erro ao carregar: ' + err.message + '</div>';
+      })
+      .listarTokens();
+  }
+
+  function renderizarTabela(tokens) {
+    if (!tokens || tokens.length === 0) {
+      document.getElementById('tabelaContainer').innerHTML =
+        '<div class="vazio">Nenhum token gerado ainda.</div>';
+      return;
+    }
+
+    // Exibe do mais recente para o mais antigo
+    tokens = tokens.slice().reverse();
+
+    var html = '<table><thead><tr>' +
+      '<th>Candidato</th><th>Unidade</th><th>Criado em</th><th>Status</th><th>Link</th>' +
+      '</tr></thead><tbody>';
+
+    tokens.forEach(function(t) {
+      var badge = t.usado
+        ? '<span class="badge badge-usado">Usado em ' + (t.usadoEm || '—') + '</span>'
+        : '<span class="badge badge-pendente">Pendente</span>';
+      var linkBtn = t.link
+        ? '<button class="btn-copiar-link" data-link="' + t.link + '" onclick="copiarLinkTabela(\'' + t.link + '\')">Copiar</button>'
+        : '—';
+      html += '<tr>' +
+        '<td>' + (t.candidato || '—') + '</td>' +
+        '<td>' + (t.unidade   || '—') + '</td>' +
+        '<td>' + (t.criado    || '—') + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td>' + linkBtn + '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tabelaContainer').innerHTML = html;
+  }
+
+  // Carrega ao abrir
+  carregarTokens();
+</script>
+</body>
+</html>

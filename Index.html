@@ -151,9 +151,24 @@
       background: #fff; transition: all .18s;
     }
     .file-btn:hover { border-color: #3949ab; color: #1a237e; background: #e8eaf6; }
-    .file-btn.selecionado { border-style: solid; border-color: #2e7d32; color: #2e7d32; background: #e8f5e9; }
-    .file-info { font-size: 12px; color: #555; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
-    .file-remover { color: #c62828; cursor: pointer; font-size: 12px; text-decoration: underline; }
+    .file-btn.tem-arquivos { border-style: solid; border-color: #2e7d32; color: #2e7d32; background: #e8f5e9; }
+    .preview-lista { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .preview-item { display: flex; align-items: center; gap: 10px; background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 6px 10px; }
+    .preview-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+    .preview-pdf { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+    .preview-info { flex: 1; min-width: 0; }
+    .preview-nome { font-size: 12px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    .preview-tam  { font-size: 11px; color: #888; }
+    .preview-remover { color: #c62828; cursor: pointer; font-size: 20px; line-height: 1; flex-shrink: 0; font-weight: bold; padding: 0 4px; }
+    .preview-remover:hover { color: #b71c1c; }
+    .preview-ver { cursor: pointer; font-size: 16px; flex-shrink: 0; padding: 0 4px; opacity: 0.5; }
+    .preview-ver:hover { opacity: 1; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.78); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+    .modal-overlay.ativo { display: flex; }
+    .modal-caixa { background: #fff; border-radius: 10px; padding: 36px 16px 16px; max-width: 90vw; max-height: 90vh; overflow: auto; position: relative; }
+    .modal-fechar { position: absolute; top: 8px; right: 12px; background: none; border: none; font-size: 28px; cursor: pointer; color: #555; line-height: 1; }
+    .modal-fechar:hover { color: #c62828; }
+    .modal-img { max-width: min(80vw, 700px); max-height: 80vh; display: block; border-radius: 6px; }
     input[type="file"] { display: none; }
 
     /* ── Campo de número (PIS/Reservista) ── */
@@ -207,12 +222,6 @@
     .sucesso-icone { font-size: 72px; margin-bottom: 20px; }
     .sucesso-titulo { font-size: 26px; font-weight: 700; color: #2e7d32; margin-bottom: 12px; }
     .sucesso-msg { font-size: 15px; color: #555; max-width: 420px; line-height: 1.65; }
-    .sucesso-link { margin-top: 24px; }
-    .sucesso-link a {
-      color: #1a237e; font-weight: 600; font-size: 14px; text-decoration: none;
-      padding: 10px 20px; border: 2px solid #1a237e; border-radius: 7px;
-    }
-    .sucesso-link a:hover { background: #e8eaf6; }
 
     @media (max-width: 560px) {
       .card { padding: 16px; }
@@ -237,7 +246,6 @@
     Seus dados e documentos foram recebidos com sucesso.<br>
     Em breve entraremos em contato para dar continuidade ao seu processo admissional.
   </p>
-  <div class="sucesso-link" id="sucessoLink"></div>
 </div>
 
 <div class="container">
@@ -439,6 +447,11 @@
 </div>
 
 <script>
+  // ── Dados injetados pelo servidor ─────────────────────────────────────────
+  var _TOKEN        = '<?= TOKEN ?>';
+  var _UNIDADE_ID   = '<?= UNIDADE_ID ?>';
+  var _UNIDADE_NOME = '<?= UNIDADE_NOME ?>';
+
   // ── Definição dos documentos ──────────────────────────────────────────────
   var DOCS = [
     { id: 'foto3x4',       rotulo: 'FOTO 3×4',                                               req: true  },
@@ -479,48 +492,77 @@
     div.innerHTML =
       '<div class="doc-rotulo">' + doc.rotulo + badge + '</div>' +
       '<label class="file-btn" id="btn-' + doc.id + '" for="file-' + doc.id + '">' +
-        '<span>📎</span><span>Selecionar arquivo</span>' +
+        '<span>📎</span><span>Adicionar arquivo(s)</span>' +
       '</label>' +
-      '<input type="file" id="file-' + doc.id + '" accept=".jpg,.jpeg,.png,.pdf">' +
-      '<div class="file-info" id="info-' + doc.id + '" style="display:none"></div>' +
+      '<input type="file" id="file-' + doc.id + '" accept=".jpg,.jpeg,.png,.pdf" multiple>' +
+      '<div class="preview-lista" id="preview-' + doc.id + '"></div>' +
       numHtml;
 
     lista.appendChild(div);
 
     // Evento de seleção de arquivo
     document.getElementById('file-' + doc.id).addEventListener('change', function() {
-      atualizarArquivo(doc.id, this);
+      adicionarArquivos(doc.id, this);
     });
   });
 
-  function atualizarArquivo(id, input) {
-    var btn  = document.getElementById('btn-' + id);
-    var info = document.getElementById('info-' + id);
-    if (input.files && input.files[0]) {
-      var f = input.files[0];
-      if (f.size > 10 * 1024 * 1024) {
-        alert('O arquivo "' + f.name + '" excede 10 MB. Escolha um arquivo menor.');
-        input.value = '';
-        return;
-      }
-      btn.classList.add('selecionado');
-      btn.innerHTML = '<span>✅</span><span>' + f.name + '</span>';
-      info.style.display = 'flex';
-      info.innerHTML =
-        '<span>' + formatarTamanho(f.size) + '</span>' +
-        '<span class="file-remover" onclick="removerArquivo(\'' + id + '\')">Remover</span>';
-    }
+  // ── Pré-preencher e travar unidade se veio do token ──────────────────────
+  if (_UNIDADE_ID) {
+    var _sel = document.getElementById('unidade');
+    _sel.value = _UNIDADE_ID;
+    _sel.disabled = true;
+    _sel.style.cssText += '; background:#f0f0f0; color:#555; cursor:default; pointer-events:none;';
   }
 
-  function removerArquivo(id) {
-    var input = document.getElementById('file-' + id);
-    var btn   = document.getElementById('btn-' + id);
-    var info  = document.getElementById('info-' + id);
+  var filesMap = {};
+
+  function adicionarArquivos(id, input) {
+    if (!input.files || !input.files.length) return;
+    if (!filesMap[id]) filesMap[id] = [];
+    var rejeitados = [];
+    Array.from(input.files).forEach(function(f) {
+      if (f.size > 10 * 1024 * 1024) { rejeitados.push(f.name); return; }
+      filesMap[id].push(f);
+    });
     input.value = '';
-    btn.classList.remove('selecionado');
-    btn.innerHTML = '<span>📎</span><span>Selecionar arquivo</span>';
-    info.style.display = 'none';
-    info.innerHTML = '';
+    if (rejeitados.length) alert('Arquivo(s) acima de 10 MB ignorado(s): ' + rejeitados.join(', '));
+    renderizarPreviews(id);
+  }
+
+  function removerArquivo(docId, idx) {
+    if (filesMap[docId]) filesMap[docId].splice(idx, 1);
+    renderizarPreviews(docId);
+  }
+
+  function renderizarPreviews(id) {
+    var btn       = document.getElementById('btn-' + id);
+    var container = document.getElementById('preview-' + id);
+    var files     = filesMap[id] || [];
+    if (files.length > 0) {
+      btn.classList.add('tem-arquivos');
+      btn.innerHTML = '<span>📎</span><span>Adicionar mais arquivo(s)</span>';
+    } else {
+      btn.classList.remove('tem-arquivos');
+      btn.innerHTML = '<span>📎</span><span>Adicionar arquivo(s)</span>';
+    }
+    container.innerHTML = '';
+    files.forEach(function(f, idx) {
+      var item = document.createElement('div');
+      item.className = 'preview-item';
+      var isImg = f.type.startsWith('image/');
+      var mediaHtml = isImg
+        ? '<img class="preview-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
+        : '<div class="preview-pdf">📄</div>';
+      item.innerHTML =
+        mediaHtml +
+        '<div class="preview-info">' +
+          '<span class="preview-nome">' + f.name + '</span>' +
+          '<span class="preview-tam">' + formatarTamanho(f.size) + '</span>' +
+        '</div>' +
+        '<span class="preview-ver" onclick="visualizarArquivo(\'' + id + '\',' + idx + ')" title="Visualizar">👁</span>' +
+        '<span class="preview-remover" onclick="removerArquivo(\'' + id + '\',' + idx + ')">×</span>';
+      container.appendChild(item);
+    });
   }
 
   function formatarTamanho(bytes) {
@@ -528,6 +570,25 @@
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
+
+  function visualizarArquivo(docId, idx) {
+    var f = (filesMap[docId] || [])[idx];
+    if (!f) return;
+    if (f.type.startsWith('image/')) {
+      document.getElementById('modalImg').src = URL.createObjectURL(f);
+      document.getElementById('modalPreview').classList.add('ativo');
+    } else {
+      window.open(URL.createObjectURL(f), '_blank');
+    }
+  }
+
+  function fecharModal() {
+    var m = document.getElementById('modalPreview');
+    m.classList.remove('ativo');
+    document.getElementById('modalImg').src = '';
+  }
+
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') fecharModal(); });
 
   // ── Máscaras ──────────────────────────────────────────────────────────────
   document.getElementById('cpf').addEventListener('input', function() {
@@ -551,7 +612,26 @@
     var v = this.value.replace(/\D/g, '').slice(0, 8);
     if (v.length > 5) v = v.slice(0,5)+'-'+v.slice(5);
     this.value = v;
+    if (v.replace(/\D/g,'').length === 8) buscarCep(v.replace(/\D/g,''));
   });
+
+  function buscarCep(cep) {
+    var rua    = document.getElementById('ruaNumeroOrigem');
+    var bairro = document.getElementById('bairroOrigem');
+    if (!rua || !bairro) return;
+    rua.placeholder = 'Buscando...';
+    fetch('https://viacep.com.br/ws/' + cep + '/json/')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        rua.placeholder = 'Ex: Rua das Flores, 123';
+        if (d.erro) return;
+        rua.value    = d.logradouro || '';
+        bairro.value = d.bairro    || '';
+        if (rua.value)    { rua.classList.remove('invalido');    document.getElementById('err-ruaNumeroOrigem')  && document.getElementById('err-ruaNumeroOrigem').classList.remove('visivel'); }
+        if (bairro.value) { bairro.classList.remove('invalido'); document.getElementById('err-bairroOrigem') && document.getElementById('err-bairroOrigem').classList.remove('visivel'); }
+      })
+      .catch(function() { rua.placeholder = 'Ex: Rua das Flores, 123'; });
+  }
 
   // ── Toggle seção VT ───────────────────────────────────────────────────────
   document.querySelectorAll('input[name="valeTransporte"]').forEach(function(r) {
@@ -668,9 +748,9 @@
     var resultado = [];
     for (var i = 0; i < DOCS.length; i++) {
       var doc   = DOCS[i];
-      var input = document.getElementById('file-' + doc.id);
-      if (input && input.files && input.files[0]) {
-        var f      = input.files[0];
+      var files = filesMap[doc.id] || [];
+      for (var j = 0; j < files.length; j++) {
+        var f      = files[j];
         var base64 = await lerArquivo(f);
         if (base64) {
           resultado.push({
@@ -711,7 +791,9 @@
       cpf:             document.getElementById('cpf').value,
       dataNascimento:  formatarData(document.getElementById('dataNascimento').value),
       telefone:        document.getElementById('telefone').value,
-      unidade:         document.getElementById('unidade').value,
+      token:           _TOKEN,
+      unidade:         _UNIDADE_ID || document.getElementById('unidade').value,
+      nomeUnidade:     _UNIDADE_NOME || document.getElementById('unidade').options[document.getElementById('unidade').selectedIndex].text,
       contaItau:       document.querySelector('input[name="contaItau"]:checked').value,
       valeTransporte:  document.querySelector('input[name="valeTransporte"]:checked').value,
       bilheteUnico:    vtSim ? (document.querySelector('input[name="bilheteUnico"]:checked') || {value:''}).value : '',
@@ -729,10 +811,6 @@
       .withSuccessHandler(function(res) {
         document.getElementById('overlayLoading').classList.remove('ativo');
         if (res.sucesso) {
-          var linkDiv = document.getElementById('sucessoLink');
-          if (res.urlPasta) {
-            linkDiv.innerHTML = '<a href="' + res.urlPasta + '" target="_blank">Ver pasta no Google Drive</a>';
-          }
           document.getElementById('telaSucesso').classList.add('ativo');
         } else {
           document.getElementById('btnEnviar').disabled = false;
@@ -760,5 +838,12 @@
     return p[2] + '/' + p[1] + '/' + p[0];
   }
 </script>
+
+<div id="modalPreview" class="modal-overlay" onclick="fecharModal()">
+  <div class="modal-caixa" onclick="event.stopPropagation()">
+    <button class="modal-fechar" onclick="fecharModal()">×</button>
+    <img id="modalImg" class="modal-img" src="" alt="">
+  </div>
+</div>
 </body>
 </html>
