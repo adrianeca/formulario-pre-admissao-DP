@@ -127,6 +127,7 @@ function processarFormulario(dados) {
     });
 
     criarPdf(dados, novaPasta);
+    dados.pastaUrl = novaPasta.getUrl();
     var pendentes = salvarEnvio(dados);
 
     if (pendentes.length === 0) {
@@ -335,13 +336,13 @@ function getEnviosSheet() {
   var sh = ss.getSheetByName('Envios');
   if (!sh) {
     sh = ss.insertSheet('Envios');
-    sh.getRange(1, 1, 1, 7).setValues([[
-      'Token', 'Candidato', 'Unidade', 'Email', 'Data Envio', 'Documentos Enviados', 'Documentos Pendentes'
+    sh.getRange(1, 1, 1, 8).setValues([[
+      'Token', 'Candidato', 'Unidade', 'Email', 'Data Envio', 'Documentos Enviados', 'Documentos Pendentes', 'Pasta Drive'
     ]]);
-    sh.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sh.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
     sh.setColumnWidth(1, 120).setColumnWidth(2, 200).setColumnWidth(3, 160)
       .setColumnWidth(4, 200).setColumnWidth(5, 140)
-      .setColumnWidth(6, 350).setColumnWidth(7, 350);
+      .setColumnWidth(6, 350).setColumnWidth(7, 350).setColumnWidth(8, 300);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -376,7 +377,8 @@ function salvarEnvio(dados) {
     dados.email        || '',
     new Date(),
     enviados.join(' | '),
-    pendentes.join(' | ')
+    pendentes.join(' | '),
+    dados.pastaUrl     || ''
   ]);
 
   return pendentes;
@@ -437,7 +439,8 @@ function listarEnvios() {
       email:     String(r[3] || ''),
       dataEnvio: r[4] instanceof Date ? Utilities.formatDate(r[4], tz, 'dd/MM/yyyy HH:mm') : String(r[4] || ''),
       enviados:  String(r[5] || '').split(' | ').filter(Boolean),
-      pendentes: String(r[6] || '').split(' | ').filter(Boolean)
+      pendentes: String(r[6] || '').split(' | ').filter(Boolean),
+      pastaUrl:  String(r[7] || '')
     });
   }
 
