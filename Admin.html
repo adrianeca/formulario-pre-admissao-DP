@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BRASAS DP – Acessos Admissão</title>
+  <title>BRASAS DP – Painel de Admissão</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
@@ -13,7 +13,7 @@
     }
     .header h1 { font-size: 20px; font-weight: 700; }
     .header p  { font-size: 13px; opacity: 0.75; margin-top: 4px; }
-    .container { max-width: 900px; margin: 0 auto; padding: 28px 20px; }
+    .container { max-width: 960px; margin: 0 auto; padding: 28px 20px; }
 
     .card { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
     .card-titulo { font-size: 15px; font-weight: 700; color: #1a237e; padding-bottom: 14px; margin-bottom: 20px; border-bottom: 2px solid #e8eaf6; }
@@ -23,8 +23,7 @@
     .form-group label { font-size: 13px; font-weight: 600; color: #444; }
     .form-group input, .form-group select {
       padding: 10px 13px; border: 1.5px solid #ddd; border-radius: 7px;
-      font-size: 14px; background: #fff; color: #333;
-      transition: border-color .18s;
+      font-size: 14px; background: #fff; color: #333; transition: border-color .18s;
     }
     .form-group input:focus, .form-group select:focus {
       outline: none; border-color: #3949ab; box-shadow: 0 0 0 3px rgba(57,73,171,.12);
@@ -37,17 +36,11 @@
     .btn-gerar:hover { background: #283593; }
     .btn-gerar:disabled { background: #9fa8da; cursor: not-allowed; }
 
-    .resultado {
-      margin-top: 16px; padding: 14px 18px; border-radius: 8px;
-      font-size: 14px; display: none;
-    }
+    .resultado { margin-top: 16px; padding: 14px 18px; border-radius: 8px; font-size: 14px; display: none; }
     .resultado.sucesso { background: #e8f5e9; border-left: 4px solid #2e7d32; color: #1b5e20; }
     .resultado.erro    { background: #ffebee; border-left: 4px solid #c62828; color: #b71c1c; }
     .resultado .link-gerado { font-family: monospace; font-size: 12px; word-break: break-all; margin-top: 8px; padding: 8px; background: rgba(0,0,0,.05); border-radius: 4px; }
-    .btn-copiar {
-      margin-top: 10px; padding: 7px 16px; background: #fff; border: 1.5px solid #2e7d32;
-      color: #2e7d32; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600;
-    }
+    .btn-copiar { margin-top: 10px; padding: 7px 16px; background: #fff; border: 1.5px solid #2e7d32; color: #2e7d32; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600; }
     .btn-copiar:hover { background: #e8f5e9; }
 
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -56,23 +49,35 @@
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #fafafa; }
 
-    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 10px; }
-    .badge-pendente { background: #fff8e1; color: #f57f17; }
-    .badge-usado    { background: #f5f5f5; color: #999; }
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px; }
+    .badge-pendente   { background: #fff8e1; color: #f57f17; }
+    .badge-usado      { background: #f5f5f5; color: #999; }
+    .badge-completo   { background: #e8f5e9; color: #2e7d32; }
+    .badge-incompleto { background: #fff3e0; color: #e65100; }
 
-    .btn-copiar-link {
-      padding: 4px 12px; background: #e8eaf6; border: none; border-radius: 5px;
-      font-size: 12px; color: #1a237e; cursor: pointer; font-weight: 600;
+    /* Badges de solicitação */
+    .badge-sol-pendente   { background: #fff8e1; color: #f57f17; }
+    .badge-sol-enviado    { background: #e3f2fd; color: #1565c0; }
+    .badge-sol-andamento  { background: #fff3e0; color: #e65100; }
+    .badge-sol-concluido  { background: #e8f5e9; color: #2e7d32; }
+
+    .btn-acao {
+      padding: 5px 14px; border: none; border-radius: 5px;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s;
     }
+    .btn-acao-gerar { background: #1a237e; color: #fff; }
+    .btn-acao-gerar:hover { background: #283593; }
+    .btn-acao-gerar:disabled { background: #9fa8da; cursor: not-allowed; }
+    .btn-copiar-link { padding: 4px 12px; background: #e8eaf6; border: none; border-radius: 5px; font-size: 12px; color: #1a237e; cursor: pointer; font-weight: 600; }
     .btn-copiar-link:hover { background: #c5cae9; }
 
-    .vazio { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
+    .link-inline { font-family: monospace; font-size: 11px; color: #555; word-break: break-all; display: block; margin-top: 4px; max-width: 280px; }
+
+    .vazio   { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
     .loading { text-align: center; color: #888; padding: 20px; font-size: 14px; }
     .refresh-btn { background: none; border: none; color: #3949ab; cursor: pointer; font-size: 13px; font-weight: 600; margin-left: 12px; }
     .refresh-btn:hover { text-decoration: underline; }
 
-    .badge-completo   { background: #e8f5e9; color: #2e7d32; }
-    .badge-incompleto { background: #fff3e0; color: #e65100; }
     .docs-detalhe { display: flex; gap: 24px; padding: 14px 12px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; }
     .docs-col { flex: 1; min-width: 200px; }
     .docs-col strong { font-size: 12px; font-weight: 700; display: block; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e0e0e0; }
@@ -88,15 +93,24 @@
 <body>
 
 <div class="header">
-  <h1>BRASAS DP – Controle de Acessos</h1>
+  <h1>BRASAS DP – Controle de Admissões</h1>
   <p>Painel administrativo – Pré-Admissão</p>
 </div>
 
 <div class="container">
 
-  <!-- Gerar novo token -->
+  <!-- Solicitações dos diretores -->
   <div class="card">
-    <div class="card-titulo">Gerar novo link de acesso</div>
+    <div class="card-titulo">
+      Solicitações dos Diretores
+      <button class="refresh-btn" onclick="carregarSolicitacoes()">↻ Atualizar</button>
+    </div>
+    <div id="solicitacoesContainer"><div class="loading">Carregando...</div></div>
+  </div>
+
+  <!-- Gerar link avulso -->
+  <div class="card">
+    <div class="card-titulo">Gerar link avulso</div>
     <div class="form-row">
       <div class="form-group" style="flex:2">
         <label for="nomeCandidato">Nome do candidato</label>
@@ -106,6 +120,7 @@
         <label for="selectUnidade">Unidade</label>
         <select id="selectUnidade">
           <option value="">— Selecione —</option>
+          <option value="BG Assessoria Linguística Ltda|Bangu">Bangu</option>
           <option value="Kansas Assessoria Linguística Ltda|Botafogo">Botafogo</option>
           <option value="BRASAS On Demand Assessoria Linguística Ltda|BRASAS On Demand">BRASAS On Demand</option>
           <option value="NS Assessoria Linguística Ltda|Cachambi">Cachambi</option>
@@ -170,8 +185,100 @@
 <script>
   var _ultimoLink = '';
 
+  // ── Solicitações dos diretores ──────────────────────────────────────────────
+
+  function carregarSolicitacoes() {
+    document.getElementById('solicitacoesContainer').innerHTML = '<div class="loading">Carregando...</div>';
+    google.script.run
+      .withSuccessHandler(renderizarSolicitacoes)
+      .withFailureHandler(function(err) {
+        document.getElementById('solicitacoesContainer').innerHTML =
+          '<div class="vazio">Erro ao carregar: ' + err.message + '</div>';
+      })
+      .listarSolicitacoes();
+  }
+
+  function renderizarSolicitacoes(lista) {
+    if (!lista || lista.length === 0) {
+      document.getElementById('solicitacoesContainer').innerHTML =
+        '<div class="vazio">Nenhuma solicitação recebida ainda.</div>';
+      return;
+    }
+
+    var html = '<table><thead><tr>' +
+      '<th>Candidato</th><th>Unidade</th><th>Cargo</th><th>Data Admissão</th>' +
+      '<th>Solicitado em</th><th>Status</th><th>Ação</th>' +
+      '</tr></thead><tbody>';
+
+    lista.forEach(function(s) {
+      var badge;
+      switch (s.status) {
+        case 'Pendente':     badge = '<span class="badge badge-sol-pendente">Aguardando link</span>'; break;
+        case 'Link enviado': badge = '<span class="badge badge-sol-enviado">Link enviado</span>';    break;
+        case 'Em andamento': badge = '<span class="badge badge-sol-andamento">Em andamento</span>'; break;
+        case 'Concluído':    badge = '<span class="badge badge-sol-concluido">Concluído ✓</span>'; break;
+        default:             badge = '<span class="badge badge-sol-pendente">' + s.status + '</span>';
+      }
+
+      var acao = '';
+      if (s.status === 'Pendente') {
+        acao = '<button class="btn-acao btn-acao-gerar" id="btn-sol-' + s.id + '" ' +
+               'onclick="gerarLinkSolicitacao(\'' + s.id + '\')">Gerar link</button>';
+      } else if (s.linkCandidato) {
+        acao = '<button class="btn-copiar-link" data-link="' + s.linkCandidato + '" ' +
+               'onclick="copiarLinkSolicitacao(this, \'' + s.linkCandidato + '\')">Copiar link</button>';
+      }
+
+      html += '<tr>' +
+        '<td><strong>' + (s.nome     || '—') + '</strong></td>' +
+        '<td>' + (s.unidade          || '—') + '</td>' +
+        '<td>' + (s.cargo            || '—') + '</td>' +
+        '<td>' + (s.dataAdmissao     || '—') + '</td>' +
+        '<td>' + (s.criado           || '—') + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td id="acao-sol-' + s.id + '">' + acao + '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('solicitacoesContainer').innerHTML = html;
+  }
+
+  function gerarLinkSolicitacao(id) {
+    var btn = document.getElementById('btn-sol-' + id);
+    if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        var cell = document.getElementById('acao-sol-' + id);
+        if (cell) {
+          cell.innerHTML =
+            '<button class="btn-copiar-link" onclick="copiarLinkSolicitacao(this, \'' + res.url + '\')">' +
+            'Copiar link</button>' +
+            '<span class="link-inline">' + res.url + '</span>';
+        }
+        // Atualiza badge na linha
+        carregarSolicitacoes();
+      })
+      .withFailureHandler(function(err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Gerar link'; }
+        alert('Erro: ' + err.message);
+      })
+      .criarTokenParaSolicitacao(id);
+  }
+
+  function copiarLinkSolicitacao(btn, link) {
+    navigator.clipboard.writeText(link).then(function() {
+      var orig = btn.textContent;
+      btn.textContent = 'Copiado!';
+      setTimeout(function() { btn.textContent = orig; }, 2000);
+    });
+  }
+
+  // ── Token avulso ───────────────────────────────────────────────────────────
+
   function gerarToken() {
-    var candidato = document.getElementById('nomeCandidato').value.trim();
+    var candidato  = document.getElementById('nomeCandidato').value.trim();
     var unidadeVal = document.getElementById('selectUnidade').value;
 
     if (!candidato || !unidadeVal) {
@@ -179,7 +286,7 @@
       return;
     }
 
-    var partes = unidadeVal.split('|');
+    var partes      = unidadeVal.split('|');
     var unidadeId   = partes[0];
     var unidadeNome = partes[1];
 
@@ -225,14 +332,15 @@
 
   function copiarLinkTabela(link) {
     navigator.clipboard.writeText(link).then(function() {});
-    var btns = document.querySelectorAll('.btn-copiar-link');
-    btns.forEach(function(b) {
+    document.querySelectorAll('.btn-copiar-link').forEach(function(b) {
       if (b.getAttribute('data-link') === link) {
         b.textContent = 'Copiado!';
         setTimeout(function() { b.textContent = 'Copiar'; }, 2000);
       }
     });
   }
+
+  // ── Tokens ─────────────────────────────────────────────────────────────────
 
   function carregarTokens() {
     document.getElementById('tabelaContainer').innerHTML = '<div class="loading">Carregando...</div>';
@@ -252,7 +360,6 @@
       return;
     }
 
-    // Exibe do mais recente para o mais antigo
     tokens = tokens.slice().reverse();
 
     var html = '<table><thead><tr>' +
@@ -280,6 +387,8 @@
     html += '</tbody></table>';
     document.getElementById('tabelaContainer').innerHTML = html;
   }
+
+  // ── Envios ─────────────────────────────────────────────────────────────────
 
   function carregarEnvios() {
     document.getElementById('enviosContainer').innerHTML = '<div class="loading">Carregando...</div>';
@@ -312,9 +421,10 @@
       var pastaBtn = e.pastaUrl
         ? '<a href="' + e.pastaUrl + '" target="_blank" class="btn-copiar-link">📁 Abrir</a>'
         : '—';
+
       html += '<tr>' +
         '<td><strong>' + (e.candidato || '—') + '</strong></td>' +
-        '<td>' + (e.unidade || '—') + '</td>' +
+        '<td>' + (e.unidade   || '—') + '</td>' +
         '<td>' + (e.dataEnvio || '—') + '</td>' +
         '<td>' + badge + '</td>' +
         '<td>' + pastaBtn + '</td>' +
@@ -333,9 +443,7 @@
             '<ul>' + e.pendentes.map(function(d) { return '<li>' + d + '</li>'; }).join('') + '</ul>' +
             '</div>'
           : '') +
-        '</div>' +
-        '</td>' +
-        '</tr>';
+        '</div></td></tr>';
     });
 
     html += '</tbody></table>';
@@ -347,7 +455,8 @@
     row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
   }
 
-  // Carrega ao abrir
+  // Carrega tudo ao abrir
+  carregarSolicitacoes();
   carregarTokens();
   carregarEnvios();
 </script>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BRASAS – Solicitação de Admissão</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+    .container { max-width: 600px; margin: 0 auto; padding: 0 16px 40px; }
+
+    .header {
+      background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+      color: #fff; padding: 32px 28px 24px;
+      border-radius: 0 0 12px 12px; margin-bottom: 20px;
+    }
+    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
+    .header p  { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+
+    .card {
+      background: #fff; border-radius: 10px; padding: 24px;
+      margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .card-titulo {
+      font-size: 15px; font-weight: 700; color: #1a237e;
+      padding-bottom: 14px; margin-bottom: 20px; border-bottom: 2px solid #e8eaf6;
+    }
+
+    .campo { margin-bottom: 20px; }
+    .campo label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+    .campo label .req { color: #c62828; margin-left: 2px; }
+    .campo input[type="text"],
+    .campo input[type="date"],
+    .campo select {
+      width: 100%; padding: 10px 13px;
+      border: 1.5px solid #ddd; border-radius: 7px;
+      font-size: 14px; background: #fff; color: #333;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .campo input:focus, .campo select:focus {
+      outline: none; border-color: #3949ab;
+      box-shadow: 0 0 0 3px rgba(57,73,171,.12);
+    }
+    .campo input.invalido, .campo select.invalido { border-color: #c62828; }
+    .msg-erro { display: none; font-size: 12px; color: #c62828; margin-top: 5px; }
+    .msg-erro.visivel { display: block; }
+
+    .btn-enviar {
+      width: 100%; padding: 14px; background: #1a237e; color: #fff;
+      border: none; border-radius: 8px; font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: background .18s; margin-top: 8px;
+    }
+    .btn-enviar:hover { background: #283593; }
+    .btn-enviar:disabled { background: #9fa8da; cursor: not-allowed; }
+
+    .sucesso-box { display: none; text-align: center; padding: 32px 20px; }
+    .sucesso-icone { font-size: 56px; margin-bottom: 16px; }
+    .sucesso-titulo { font-size: 22px; font-weight: 700; color: #2e7d32; margin-bottom: 12px; }
+    .sucesso-texto { font-size: 15px; color: #555; line-height: 1.65; }
+
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(255,255,255,.85); z-index: 999;
+      align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+    }
+    .overlay.ativo { display: flex; }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid #e8eaf6;
+      border-top-color: #1a237e; border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .overlay p { font-size: 14px; color: #555; }
+  </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <p>Enviando solicitação...</p>
+</div>
+
+<div class="header">
+  <h1>BRASAS English Course</h1>
+  <p>Solicitação de Admissão – Diretor de Unidade</p>
+</div>
+
+<div class="container">
+
+  <div class="card" id="formCard">
+    <div class="card-titulo">Dados do novo funcionário</div>
+
+    <div class="campo">
+      <label for="unidade">Unidade <span class="req">*</span></label>
+      <select id="unidade">
+        <option value="">— Selecione —</option>
+        <option>Bangu</option>
+        <option>Botafogo</option>
+        <option>BRASAS On Demand</option>
+        <option>Cachambi</option>
+        <option>Campo Grande</option>
+        <option>Copacabana</option>
+        <option>Caxias</option>
+        <option>Downtown</option>
+        <option>Freguesia</option>
+        <option>Grajaú</option>
+        <option>Ilha do Governador</option>
+        <option>Ipanema</option>
+        <option>Itaipu</option>
+        <option>Laranjeiras</option>
+        <option>Méier</option>
+        <option>Niterói</option>
+        <option>Nova Iguaçu</option>
+        <option>Novo Leblon</option>
+        <option>Parque Olímpico</option>
+        <option>Pechincha</option>
+        <option>Península</option>
+        <option>Recreio</option>
+        <option>Taquara</option>
+        <option>Tijuca</option>
+        <option>Vila da Penha</option>
+        <option>Vila Olímpia</option>
+        <option>Vila Valqueire</option>
+      </select>
+      <span class="msg-erro" id="err-unidade">Selecione a unidade.</span>
+    </div>
+
+    <div class="campo">
+      <label for="nome">Nome Completo do Funcionário <span class="req">*</span></label>
+      <input type="text" id="nome" placeholder="Ex: João da Silva">
+      <span class="msg-erro" id="err-nome">Informe o nome completo.</span>
+    </div>
+
+    <div class="campo">
+      <label for="cpf">CPF do Funcionário <span class="req">*</span></label>
+      <input type="text" id="cpf" placeholder="000.000.000-00" maxlength="14">
+      <span class="msg-erro" id="err-cpf">CPF inválido.</span>
+    </div>
+
+    <div class="campo">
+      <label for="cargo">Cargo <span class="req">*</span></label>
+      <select id="cargo">
+        <option value="">— Selecione —</option>
+        <option>SECRETARIA</option>
+        <option>ASG</option>
+        <option>PORTEIRO</option>
+        <option>APRENDIZ</option>
+        <option>AGENTE DE APOIO</option>
+      </select>
+      <span class="msg-erro" id="err-cargo">Selecione o cargo.</span>
+    </div>
+
+    <div class="campo">
+      <label for="jornada">Jornada de Trabalho <span class="req">*</span></label>
+      <input type="text" id="jornada" placeholder="Ex: 08h às 17h / escala 6x1 / etc.">
+      <span class="msg-erro" id="err-jornada">Informe a jornada de trabalho.</span>
+    </div>
+
+    <div class="campo">
+      <label for="dataAdmissao">Data de Admissão <span class="req">*</span></label>
+      <input type="date" id="dataAdmissao">
+      <span class="msg-erro" id="err-dataAdmissao">Selecione uma data com no mínimo 2 dias úteis de antecedência.</span>
+    </div>
+
+    <button class="btn-enviar" id="btnEnviar" onclick="enviar()">Enviar solicitação</button>
+  </div>
+
+  <div class="card sucesso-box" id="sucessoBox">
+    <div class="sucesso-icone">✅</div>
+    <div class="sucesso-titulo">Solicitação enviada com sucesso!</div>
+    <div class="sucesso-texto" id="sucessoTexto">
+      Sua solicitação foi registrada.<br>
+      O setor de DP irá gerar o link de pré-admissão e o enviará para o candidato.
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Máscara e validação de CPF ────────────────────────────────────────────
+  document.getElementById('cpf').addEventListener('input', function() {
+    var v = this.value.replace(/\D/g, '').substring(0, 11);
+    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    this.value = v;
+  });
+
+  function validarCpf(cpf) {
+    cpf = cpf.replace(/\D/g, '');
+    if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+    var s = 0, r;
+    for (var i = 0; i < 9; i++) s += parseInt(cpf[i]) * (10 - i);
+    r = (s * 10) % 11; if (r >= 10) r = 0;
+    if (r !== parseInt(cpf[9])) return false;
+    s = 0;
+    for (var i = 0; i < 10; i++) s += parseInt(cpf[i]) * (11 - i);
+    r = (s * 10) % 11; if (r >= 10) r = 0;
+    return r === parseInt(cpf[10]);
+  }
+
+  // ── Data mínima: 2 dias úteis a partir de hoje ────────────────────────────
+  function calcMinData() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    var util = 0;
+    while (util < 2) {
+      d.setDate(d.getDate() + 1);
+      var dow = d.getDay();
+      if (dow !== 0 && dow !== 6) util++;
+    }
+    return d;
+  }
+
+  function toInputDate(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  var minDate = calcMinData();
+  document.getElementById('dataAdmissao').min = toInputDate(minDate);
+
+  // ── Validação e envio ─────────────────────────────────────────────────────
+  function marcarErro(campo, mostrar) {
+    var input = document.getElementById(campo);
+    var erro  = document.getElementById('err-' + campo);
+    if (mostrar) {
+      input.classList.add('invalido');
+      erro.classList.add('visivel');
+    } else {
+      input.classList.remove('invalido');
+      erro.classList.remove('visivel');
+    }
+  }
+
+  function enviar() {
+    var unidade = document.getElementById('unidade').value;
+    var nome    = document.getElementById('nome').value.trim();
+    var cpf     = document.getElementById('cpf').value;
+    var cargo   = document.getElementById('cargo').value;
+    var jornada = document.getElementById('jornada').value.trim();
+    var dataAdm = document.getElementById('dataAdmissao').value;
+
+    var dataValida = dataAdm && new Date(dataAdm + 'T12:00:00') >= minDate;
+
+    marcarErro('unidade',     !unidade);
+    marcarErro('nome',        !nome);
+    marcarErro('cpf',         !validarCpf(cpf));
+    marcarErro('cargo',       !cargo);
+    marcarErro('jornada',     !jornada);
+    marcarErro('dataAdmissao', !dataValida);
+
+    if (!unidade || !nome || !validarCpf(cpf) || !cargo || !jornada || !dataValida) return;
+
+    document.getElementById('overlay').classList.add('ativo');
+    document.getElementById('btnEnviar').disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        document.getElementById('overlay').classList.remove('ativo');
+        if (res.sucesso) {
+          document.getElementById('formCard').style.display = 'none';
+          document.getElementById('sucessoBox').style.display = 'block';
+          document.getElementById('sucessoTexto').innerHTML =
+            'Solicitação registrada para <strong>' + nome + '</strong> — ' + unidade + '.<br><br>' +
+            'O setor de DP irá gerar o link de pré-admissão e o enviará para o candidato.';
+        } else {
+          document.getElementById('btnEnviar').disabled = false;
+          alert('Erro ao enviar: ' + (res.erro || 'Tente novamente.'));
+        }
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById('overlay').classList.remove('ativo');
+        document.getElementById('btnEnviar').disabled = false;
+        alert('Erro: ' + err.message);
+      })
+      .processarSolicitacao({
+        unidade:      unidade,
+        nome:         nome,
+        cpf:          cpf,
+        cargo:        cargo,
+        jornada:      jornada,
+        dataAdmissao: dataAdm
+      });
+  }
+</script>
+</body>
+</html>
