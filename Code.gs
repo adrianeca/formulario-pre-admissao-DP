@@ -124,6 +124,7 @@ function processarFormulario(dados) {
     });
 
     criarPdf(dados, novaPasta);
+    salvarEnvio(dados);
     return { sucesso: true };
   } catch (e) {
     Logger.log(e.toString());
@@ -215,6 +216,88 @@ function listarTokens() {
   }
 
   return tokens;
+}
+
+// ── Envios ────────────────────────────────────────────────────────────────────
+
+function getEnviosSheet() {
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_TOKENS_ID');
+  var ss = SpreadsheetApp.openById(id);
+  var sh = ss.getSheetByName('Envios');
+  if (!sh) {
+    sh = ss.insertSheet('Envios');
+    sh.getRange(1, 1, 1, 7).setValues([[
+      'Token', 'Candidato', 'Unidade', 'Email', 'Data Envio', 'Documentos Enviados', 'Documentos Pendentes'
+    ]]);
+    sh.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sh.setColumnWidth(1, 120).setColumnWidth(2, 200).setColumnWidth(3, 160)
+      .setColumnWidth(4, 200).setColumnWidth(5, 140)
+      .setColumnWidth(6, 350).setColumnWidth(7, 350);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function salvarEnvio(dados) {
+  var enviados = [];
+  var pendentes = [];
+
+  (dados.documentos || []).forEach(function(d) {
+    if (d.base64) {
+      if (enviados.indexOf(d.rotulo) === -1) enviados.push(d.rotulo);
+    } else {
+      if (pendentes.indexOf(d.rotulo) === -1) pendentes.push(d.rotulo);
+    }
+  });
+
+  // PIS/PASEP ou Reservista informados por número contam como enviados
+  if (dados.numPisPasep) {
+    pendentes = pendentes.filter(function(p) { return p !== 'PIS / PASEP'; });
+    if (enviados.indexOf('PIS / PASEP') === -1) enviados.push('PIS / PASEP (nº)');
+  }
+  if (dados.numReservista) {
+    pendentes = pendentes.filter(function(p) { return p !== 'CERTIFICADO DE RESERVISTA'; });
+    if (enviados.indexOf('CERTIFICADO DE RESERVISTA') === -1) enviados.push('CERTIFICADO DE RESERVISTA (nº)');
+  }
+
+  getEnviosSheet().appendRow([
+    dados.token       || '',
+    dados.nomeCompleto|| '',
+    dados.nomeUnidade || dados.unidade || '',
+    dados.email       || '',
+    new Date(),
+    enviados.join(' | '),
+    pendentes.join(' | ')
+  ]);
+}
+
+function listarEnvios() {
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_TOKENS_ID');
+  if (!id) return [];
+  var ss;
+  try { ss = SpreadsheetApp.openById(id); } catch(e) { return []; }
+  var sh = ss.getSheetByName('Envios');
+  if (!sh || sh.getLastRow() < 2) return [];
+
+  var data = sh.getDataRange().getValues();
+  var tz   = Session.getScriptTimeZone();
+  var envios = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var r = data[i];
+    if (!String(r[1]).trim()) continue;
+    envios.push({
+      token:     String(r[0] || ''),
+      candidato: String(r[1] || ''),
+      unidade:   String(r[2] || ''),
+      email:     String(r[3] || ''),
+      dataEnvio: r[4] instanceof Date ? Utilities.formatDate(r[4], tz, 'dd/MM/yyyy HH:mm') : String(r[4] || ''),
+      enviados:  String(r[5] || '').split(' | ').filter(Boolean),
+      pendentes: String(r[6] || '').split(' | ').filter(Boolean)
+    });
+  }
+
+  return envios.reverse();
 }
 
 function validarToken(token) {

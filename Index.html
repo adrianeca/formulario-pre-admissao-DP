@@ -467,7 +467,8 @@
     { id: 'certNasc',      rotulo: 'CERTIDÃO DE NASCIMENTO DOS FILHOS MENORES DE 14 ANOS',   req: false },
     { id: 'vacinacao',     rotulo: 'CARTÃO DE VACINAÇÃO DOS MENORES DE 7 ANOS',              req: false },
     { id: 'compEscolar',   rotulo: 'COMPROVANTE ESCOLAR DE FILHOS DE 7 A 14 ANOS',           req: false },
-    { id: 'compResidencia',rotulo: 'COMPROVANTE DE RESIDÊNCIA ATUAL',                         req: true  },
+    { id: 'compResidencia', rotulo: 'COMPROVANTE DE RESIDÊNCIA ATUAL',                         req: true  },
+    { id: 'antecedentes',   rotulo: 'ANTECEDENTES CRIMINAIS',                                   req: true  },
   ];
 
   // ── Gerar UI de upload ────────────────────────────────────────────────────
@@ -749,17 +750,22 @@
     for (var i = 0; i < DOCS.length; i++) {
       var doc   = DOCS[i];
       var files = filesMap[doc.id] || [];
-      for (var j = 0; j < files.length; j++) {
-        var f      = files[j];
-        var base64 = await lerArquivo(f);
-        if (base64) {
-          resultado.push({
-            rotulo: doc.rotulo,
-            nome:   doc.id + '_' + f.name,
-            tipo:   f.type || 'application/octet-stream',
-            base64: base64
-          });
+      if (files.length > 0) {
+        for (var j = 0; j < files.length; j++) {
+          var f      = files[j];
+          var base64 = await lerArquivo(f);
+          if (base64) {
+            resultado.push({
+              id:     doc.id,
+              rotulo: doc.rotulo,
+              nome:   doc.id + '_' + f.name,
+              tipo:   f.type || 'application/octet-stream',
+              base64: base64
+            });
+          }
         }
+      } else {
+        resultado.push({ id: doc.id, rotulo: doc.rotulo, nome: '', tipo: '', base64: null });
       }
     }
     return resultado;

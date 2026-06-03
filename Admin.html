@@ -70,6 +70,18 @@
     .loading { text-align: center; color: #888; padding: 20px; font-size: 14px; }
     .refresh-btn { background: none; border: none; color: #3949ab; cursor: pointer; font-size: 13px; font-weight: 600; margin-left: 12px; }
     .refresh-btn:hover { text-decoration: underline; }
+
+    .badge-completo { background: #e8f5e9; color: #2e7d32; }
+    .docs-detalhe { display: flex; gap: 24px; padding: 14px 12px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; }
+    .docs-col { flex: 1; min-width: 200px; }
+    .docs-col strong { font-size: 12px; font-weight: 700; display: block; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e0e0e0; }
+    .enviados-col strong { color: #2e7d32; }
+    .pendentes-col strong { color: #c62828; }
+    .docs-col ul { list-style: none; padding: 0; margin: 0; }
+    .docs-col li { font-size: 12px; padding: 3px 0; color: #444; }
+    .enviados-col li::before { content: '✓ '; color: #2e7d32; font-weight: 700; }
+    .pendentes-col li::before { content: '✗ '; color: #c62828; font-weight: 700; }
+    .detail-row td { padding: 8px 12px !important; }
   </style>
 </head>
 <body>
@@ -141,6 +153,15 @@
       <button class="refresh-btn" onclick="carregarTokens()">↻ Atualizar</button>
     </div>
     <div id="tabelaContainer"><div class="loading">Carregando...</div></div>
+  </div>
+
+  <!-- Formulários recebidos -->
+  <div class="card">
+    <div class="card-titulo">
+      Formulários recebidos
+      <button class="refresh-btn" onclick="carregarEnvios()">↻ Atualizar</button>
+    </div>
+    <div id="enviosContainer"><div class="loading">Carregando...</div></div>
   </div>
 
 </div>
@@ -257,8 +278,71 @@
     document.getElementById('tabelaContainer').innerHTML = html;
   }
 
+  function carregarEnvios() {
+    document.getElementById('enviosContainer').innerHTML = '<div class="loading">Carregando...</div>';
+    google.script.run
+      .withSuccessHandler(renderizarEnvios)
+      .withFailureHandler(function(err) {
+        document.getElementById('enviosContainer').innerHTML =
+          '<div class="vazio">Erro ao carregar: ' + err.message + '</div>';
+      })
+      .listarEnvios();
+  }
+
+  function renderizarEnvios(envios) {
+    if (!envios || envios.length === 0) {
+      document.getElementById('enviosContainer').innerHTML =
+        '<div class="vazio">Nenhum formulário recebido ainda.</div>';
+      return;
+    }
+
+    var html = '<table><thead><tr>' +
+      '<th>Candidato</th><th>Unidade</th><th>Data de envio</th><th>Status</th><th></th>' +
+      '</tr></thead><tbody>';
+
+    envios.forEach(function(e, idx) {
+      var pendCount = e.pendentes.length;
+      var badge = pendCount > 0
+        ? '<span class="badge badge-pendente">' + pendCount + ' pendente' + (pendCount > 1 ? 's' : '') + '</span>'
+        : '<span class="badge badge-completo">Completo ✓</span>';
+
+      html += '<tr>' +
+        '<td><strong>' + (e.candidato || '—') + '</strong></td>' +
+        '<td>' + (e.unidade || '—') + '</td>' +
+        '<td>' + (e.dataEnvio || '—') + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td><button class="btn-copiar-link" onclick="toggleDocs(' + idx + ')">▼ Documentos</button></td>' +
+        '</tr>' +
+        '<tr id="docs-row-' + idx + '" class="detail-row" style="display:none">' +
+        '<td colspan="5">' +
+        '<div class="docs-detalhe">' +
+        '<div class="docs-col enviados-col">' +
+        '<strong>Enviados (' + e.enviados.length + ')</strong>' +
+        '<ul>' + e.enviados.map(function(d) { return '<li>' + d + '</li>'; }).join('') + '</ul>' +
+        '</div>' +
+        (pendCount > 0
+          ? '<div class="docs-col pendentes-col">' +
+            '<strong>Pendentes (' + pendCount + ')</strong>' +
+            '<ul>' + e.pendentes.map(function(d) { return '<li>' + d + '</li>'; }).join('') + '</ul>' +
+            '</div>'
+          : '') +
+        '</div>' +
+        '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('enviosContainer').innerHTML = html;
+  }
+
+  function toggleDocs(idx) {
+    var row = document.getElementById('docs-row-' + idx);
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+  }
+
   // Carrega ao abrir
   carregarTokens();
+  carregarEnvios();
 </script>
 </body>
 </html>
