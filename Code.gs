@@ -44,14 +44,14 @@ function inicializar() {
   PropertiesService.getScriptProperties().setProperty('WEBAPP_URL', url);
   var sh = getTokenSheet();
 
-  // Fórmula automática na coluna D (Link)
   sh.getRange('D2').setFormula(
     '=ARRAYFORMULA(SE(A2:A<>"";"' + url + '?token="&A2:A;""))'
   );
 
   Logger.log('✅ Configuração concluída!');
   Logger.log('📊 Planilha de tokens: ' + sh.getParent().getUrl());
-  Logger.log('🔗 URL do formulário: ' + url);
+  Logger.log('🔗 URL do formulário (candidato): ' + url + '?token=SEU_TOKEN');
+  Logger.log('🔒 URL do painel DP: ' + url + '?dp=1');
 }
 
 // ── Roteamento principal ──────────────────────────────────────────────────────
@@ -59,6 +59,18 @@ function inicializar() {
 function doGet(e) {
   var p = (e && e.parameter) ? e.parameter : {};
 
+  // Painel do DP — restrito a @brasas.com
+  if (p.dp === '1') {
+    var email = Session.getActiveUser().getEmail();
+    if (!email || !email.endsWith('@brasas.com')) {
+      return renderErroPagina('Acesso restrito ao setor de DP. Faça login com sua conta @brasas.com.');
+    }
+    return HtmlService.createHtmlOutputFromFile('Admin')
+      .setTitle('BRASAS DP – Painel de Admissão')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // Formulário do candidato — exige token
   if (!p.token) {
     return renderErroPagina('Acesso inválido. Solicite um link personalizado ao setor de DP.');
   }
@@ -141,17 +153,17 @@ function getTokenSheet() {
     var sh = ss.getActiveSheet();
     sh.setName('Tokens');
 
-    // Cabeçalhos
-    sh.getRange(1, 1, 1, 6).setValues([['ID / Token', 'Candidato', 'Unidade', 'Link para enviar', 'Usado', 'Usado em']]);
-    sh.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sh.getRange(1, 1, 1, 7).setValues([[
+      'ID / Token', 'Candidato', 'Unidade', 'Link para enviar', 'Usado', 'Usado em', 'Criado em'
+    ]]);
+    sh.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
 
-    // Larguras
     sh.setColumnWidth(1, 130).setColumnWidth(2, 200).setColumnWidth(3, 160)
-      .setColumnWidth(4, 480).setColumnWidth(5, 80).setColumnWidth(6, 140);
+      .setColumnWidth(4, 480).setColumnWidth(5, 80).setColumnWidth(6, 140)
+      .setColumnWidth(7, 140);
 
     sh.setFrozenRows(1);
 
-    // Dropdown de unidades na coluna C
     var opcoes = Object.keys(UNIDADES).sort();
     sh.getRange('C2:C1000').setDataValidation(
       SpreadsheetApp.newDataValidation()
@@ -160,12 +172,53 @@ function getTokenSheet() {
         .build()
     );
 
-    // Proteger colunas automáticas com aviso
     sh.getRange('D1:F1000').protect()
       .setDescription('Preenchido automaticamente — não editar')
       .setWarningOnly(true);
   }
   return ss.getSheetByName('Tokens');
+}
+
+// Cria um novo token via painel DP e retorna a URL de acesso
+function criarToken(candidato, unidadeId, unidadeNome) {
+  var url = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL');
+  if (!url) throw new Error('URL do Web App não configurada. Execute inicializar() primeiro.');
+
+  var token = Utilities.getUuid().replace(/-/g, '').substring(0, 10).toUpperCase();
+  var link  = url + '?token=' + token;
+
+  var sh  = getTokenSheet();
+  var row = sh.getLastRow() + 1;
+  sh.getRange(row, 1, 1, 3).setValues([[token, candidato, unidadeNome]]);
+  sh.getRange(row, 7).setValue(new Date());
+
+  return { url: link, token: token };
+}
+
+// Retorna todos os tokens para exibição no painel DP
+function listarTokens() {
+  var url  = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL');
+  var sh   = getTokenSheet();
+  var data = sh.getDataRange().getValues();
+  var tz   = Session.getScriptTimeZone();
+  var tokens = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var r = data[i];
+    if (!String(r[0]).trim()) continue;
+    var token = String(r[0]).trim();
+    tokens.push({
+      token:     token,
+      candidato: String(r[1] || ''),
+      unidade:   String(r[2] || ''),
+      link:      url ? url + '?token=' + token : String(r[3] || ''),
+      usado:     r[4] === true,
+      usadoEm:   r[5] instanceof Date ? Utilities.formatDate(r[5], tz, 'dd/MM/yyyy HH:mm') : (r[5] ? String(r[5]) : ''),
+      criado:    r[6] instanceof Date ? Utilities.formatDate(r[6], tz, 'dd/MM/yyyy HH:mm') : (r[6] ? String(r[6]) : '')
+    });
+  }
+
+  return tokens;
 }
 
 function validarToken(token) {
