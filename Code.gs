@@ -59,12 +59,8 @@ function inicializar() {
 function doGet(e) {
   var p = (e && e.parameter) ? e.parameter : {};
 
-  // Painel do DP — restrito a @brasas.com
+  // Painel do DP
   if (p.dp === '1') {
-    var email = Session.getActiveUser().getEmail();
-    if (!email || !email.endsWith('@brasas.com')) {
-      return renderErroPagina('Acesso restrito ao setor de DP. Faça login com sua conta @brasas.com.');
-    }
     return HtmlService.createHtmlOutputFromFile('Admin')
       .setTitle('BRASAS DP – Painel de Admissão')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
