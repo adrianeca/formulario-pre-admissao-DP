@@ -71,7 +71,8 @@
     .refresh-btn { background: none; border: none; color: #3949ab; cursor: pointer; font-size: 13px; font-weight: 600; margin-left: 12px; }
     .refresh-btn:hover { text-decoration: underline; }
 
-    .badge-completo { background: #e8f5e9; color: #2e7d32; }
+    .badge-completo   { background: #e8f5e9; color: #2e7d32; }
+    .badge-incompleto { background: #fff3e0; color: #e65100; }
     .docs-detalhe { display: flex; gap: 24px; padding: 14px 12px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; }
     .docs-col { flex: 1; min-width: 200px; }
     .docs-col strong { font-size: 12px; font-weight: 700; display: block; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e0e0e0; }
@@ -260,8 +261,10 @@
 
     tokens.forEach(function(t) {
       var badge = t.usado
-        ? '<span class="badge badge-usado">Usado em ' + (t.usadoEm || '—') + '</span>'
-        : '<span class="badge badge-pendente">Pendente</span>';
+        ? '<span class="badge badge-usado">Completo em ' + (t.usadoEm || '—') + '</span>'
+        : t.incompleto
+          ? '<span class="badge badge-incompleto">Incompleto</span>'
+          : '<span class="badge badge-pendente">Aguardando</span>';
       var linkBtn = t.link
         ? '<button class="btn-copiar-link" data-link="' + t.link + '" onclick="copiarLinkTabela(\'' + t.link + '\')">Copiar</button>'
         : '—';

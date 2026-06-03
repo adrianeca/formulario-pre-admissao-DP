@@ -79,17 +79,22 @@ function doGet(e) {
     return renderErroPagina(msg);
   }
 
+  var pendentes = td.incompleto ? getPendentes(td.token) : [];
+
   var tmpl = HtmlService.createTemplateFromFile('Index');
   tmpl.TOKEN        = td.token;
   tmpl.UNIDADE_ID   = td.unidadeId;
   tmpl.UNIDADE_NOME = td.unidadeNome;
+  tmpl.STATUS       = td.incompleto ? 'incompleto' : 'novo';
+  tmpl.CANDIDATO    = td.candidato || '';
+  tmpl.PENDENTES    = JSON.stringify(pendentes);
 
   return tmpl.evaluate()
     .setTitle('Formulário de Pré-Admissão – BRASAS')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// ── Processamento do formulário ───────────────────────────────────────────────
+// ── Processamento do formulário (primeiro envio) ──────────────────────────────
 
 function processarFormulario(dados) {
   var lock = LockService.getScriptLock();
@@ -100,18 +105,16 @@ function processarFormulario(dados) {
       return { sucesso: false, erro: 'Link inválido ou já utilizado. Recarregue a página.' };
     }
 
-    marcarTokenUsado(dados.token);
+    // Marca como INCOMPLETO imediatamente para evitar duplo envio
+    marcarTokenIncompleto(dados.token);
 
-    var pastaPai = DriveApp.getFolderById(PASTA_PAI_ID);
-
+    var pastaPai    = DriveApp.getFolderById(PASTA_PAI_ID);
     var nomeUnidade = (dados.nomeUnidade || dados.unidade).toUpperCase();
-    var pastaUnidade;
-    var it = pastaPai.getFoldersByName(nomeUnidade);
-    pastaUnidade = it.hasNext() ? it.next() : pastaPai.createFolder(nomeUnidade);
+    var it          = pastaPai.getFoldersByName(nomeUnidade);
+    var pastaUnidade = it.hasNext() ? it.next() : pastaPai.createFolder(nomeUnidade);
+    var novaPasta   = pastaUnidade.createFolder(dados.nomeCompleto.toUpperCase());
 
-    var novaPasta = pastaUnidade.createFolder(dados.nomeCompleto.toUpperCase());
-
-    (dados.documentos || []).forEach(function (doc) {
+    (dados.documentos || []).forEach(function(doc) {
       if (doc.base64) {
         novaPasta.createFile(
           Utilities.newBlob(
@@ -124,8 +127,67 @@ function processarFormulario(dados) {
     });
 
     criarPdf(dados, novaPasta);
-    salvarEnvio(dados);
-    return { sucesso: true };
+    var pendentes = salvarEnvio(dados);
+
+    if (pendentes.length === 0) {
+      marcarTokenUsado(dados.token);
+    } else {
+      try { enviarEmailPendencias(dados, pendentes); } catch(emailErr) { Logger.log('Email: ' + emailErr); }
+    }
+
+    return { sucesso: true, pendentes: pendentes };
+  } catch (e) {
+    Logger.log(e.toString());
+    return { sucesso: false, erro: e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ── Complemento de documentos (retorno ao mesmo link) ────────────────────────
+
+function completarDocumentos(token, documentos) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var td = validarToken(token);
+    if (!td.valido || !td.incompleto) {
+      return { sucesso: false, erro: 'Link inválido ou processo já concluído.' };
+    }
+
+    // Localiza a pasta existente do candidato
+    var pastaPai     = DriveApp.getFolderById(PASTA_PAI_ID);
+    var nomeUnidade  = td.unidadeNome.toUpperCase();
+    var itU          = pastaPai.getFoldersByName(nomeUnidade);
+    var pastaUnidade = itU.hasNext() ? itU.next() : pastaPai.createFolder(nomeUnidade);
+
+    var nomeCandidato = td.candidato.toUpperCase();
+    var itC   = pastaUnidade.getFoldersByName(nomeCandidato);
+    var pasta = itC.hasNext() ? itC.next() : pastaUnidade.createFolder(nomeCandidato);
+
+    // Adiciona os novos arquivos à pasta existente
+    (documentos || []).forEach(function(doc) {
+      if (doc.base64) {
+        pasta.createFile(
+          Utilities.newBlob(
+            Utilities.base64Decode(doc.base64),
+            doc.tipo || 'application/octet-stream',
+            doc.nome.toUpperCase()
+          )
+        );
+      }
+    });
+
+    // Atualiza o registro de envio
+    var novosEnviados  = (documentos || []).filter(function(d) { return !!d.base64; }).map(function(d) { return d.rotulo; });
+    var novosPendentes = (documentos || []).filter(function(d) { return !d.base64; }).map(function(d) { return d.rotulo; });
+    atualizarEnvio(token, novosEnviados, novosPendentes);
+
+    if (novosPendentes.length === 0) {
+      marcarTokenUsado(token);
+    }
+
+    return { sucesso: true, pendentes: novosPendentes };
   } catch (e) {
     Logger.log(e.toString());
     return { sucesso: false, erro: e.message };
@@ -151,12 +213,12 @@ function getTokenSheet() {
     sh.setName('Tokens');
 
     sh.getRange(1, 1, 1, 7).setValues([[
-      'ID / Token', 'Candidato', 'Unidade', 'Link para enviar', 'Usado', 'Usado em', 'Criado em'
+      'ID / Token', 'Candidato', 'Unidade', 'Link para enviar', 'Status', 'Atualizado em', 'Criado em'
     ]]);
     sh.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
 
     sh.setColumnWidth(1, 130).setColumnWidth(2, 200).setColumnWidth(3, 160)
-      .setColumnWidth(4, 480).setColumnWidth(5, 80).setColumnWidth(6, 140)
+      .setColumnWidth(4, 480).setColumnWidth(5, 110).setColumnWidth(6, 140)
       .setColumnWidth(7, 140);
 
     sh.setFrozenRows(1);
@@ -176,7 +238,6 @@ function getTokenSheet() {
   return ss.getSheetByName('Tokens');
 }
 
-// Cria um novo token via painel DP e retorna a URL de acesso
 function criarToken(candidato, unidadeId, unidadeNome) {
   var url = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL');
   if (!url) throw new Error('URL do Web App não configurada. Execute inicializar() primeiro.');
@@ -192,7 +253,6 @@ function criarToken(candidato, unidadeId, unidadeNome) {
   return { url: link, token: token };
 }
 
-// Retorna todos os tokens para exibição no painel DP
 function listarTokens() {
   var url  = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL');
   var sh   = getTokenSheet();
@@ -203,19 +263,68 @@ function listarTokens() {
   for (var i = 1; i < data.length; i++) {
     var r = data[i];
     if (!String(r[0]).trim()) continue;
-    var token = String(r[0]).trim();
+    var token  = String(r[0]).trim();
+    var status = r[4];
     tokens.push({
       token:     token,
       candidato: String(r[1] || ''),
       unidade:   String(r[2] || ''),
       link:      url ? url + '?token=' + token : String(r[3] || ''),
-      usado:     r[4] === true,
+      usado:     status === true,
+      incompleto: status === 'INCOMPLETO',
       usadoEm:   r[5] instanceof Date ? Utilities.formatDate(r[5], tz, 'dd/MM/yyyy HH:mm') : (r[5] ? String(r[5]) : ''),
       criado:    r[6] instanceof Date ? Utilities.formatDate(r[6], tz, 'dd/MM/yyyy HH:mm') : (r[6] ? String(r[6]) : '')
     });
   }
 
   return tokens;
+}
+
+function validarToken(token) {
+  if (!token) return { valido: false, usado: false };
+  var sh   = getTokenSheet();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(token).trim()) {
+      if (data[i][4] === true) return { valido: false, usado: true };
+      var unidadeNome = String(data[i][2]);
+      var unidadeId   = UNIDADES[unidadeNome] || unidadeNome;
+      var incompleto  = data[i][4] === 'INCOMPLETO';
+      return {
+        valido:      true,
+        token:       token,
+        unidadeId:   unidadeId,
+        unidadeNome: unidadeNome,
+        incompleto:  incompleto,
+        candidato:   String(data[i][1] || '')
+      };
+    }
+  }
+  return { valido: false, usado: false };
+}
+
+function marcarTokenIncompleto(token) {
+  var sh   = getTokenSheet();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(token).trim()) {
+      sh.getRange(i + 1, 5).setValue('INCOMPLETO');
+      sh.getRange(i + 1, 6).setValue(new Date());
+      return;
+    }
+  }
+}
+
+function marcarTokenUsado(token) {
+  var sh   = getTokenSheet();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(token).trim()) {
+      sh.getRange(i + 1, 5).setValue(true);
+      sh.getRange(i + 1, 6).setValue(new Date());
+      return;
+    }
+  }
 }
 
 // ── Envios ────────────────────────────────────────────────────────────────────
@@ -238,8 +347,9 @@ function getEnviosSheet() {
   return sh;
 }
 
+// Salva o envio inicial e retorna a lista de pendentes
 function salvarEnvio(dados) {
-  var enviados = [];
+  var enviados  = [];
   var pendentes = [];
 
   (dados.documentos || []).forEach(function(d) {
@@ -250,7 +360,6 @@ function salvarEnvio(dados) {
     }
   });
 
-  // PIS/PASEP ou Reservista informados por número contam como enviados
   if (dados.numPisPasep) {
     pendentes = pendentes.filter(function(p) { return p !== 'PIS / PASEP'; });
     if (enviados.indexOf('PIS / PASEP') === -1) enviados.push('PIS / PASEP (nº)');
@@ -261,14 +370,49 @@ function salvarEnvio(dados) {
   }
 
   getEnviosSheet().appendRow([
-    dados.token       || '',
-    dados.nomeCompleto|| '',
-    dados.nomeUnidade || dados.unidade || '',
-    dados.email       || '',
+    dados.token        || '',
+    dados.nomeCompleto || '',
+    dados.nomeUnidade  || dados.unidade || '',
+    dados.email        || '',
     new Date(),
     enviados.join(' | '),
     pendentes.join(' | ')
   ]);
+
+  return pendentes;
+}
+
+// Atualiza o registro existente quando o candidato completa os documentos
+function atualizarEnvio(token, novosEnviados, novosPendentes) {
+  var sh   = getEnviosSheet();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(token).trim()) {
+      var jaEnviados = String(data[i][5] || '').split(' | ').filter(Boolean);
+      novosEnviados.forEach(function(e) {
+        if (jaEnviados.indexOf(e) === -1) jaEnviados.push(e);
+      });
+      sh.getRange(i + 1, 6).setValue(jaEnviados.join(' | '));
+      sh.getRange(i + 1, 7).setValue(novosPendentes.join(' | '));
+      return;
+    }
+  }
+}
+
+function getPendentes(token) {
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_TOKENS_ID');
+  if (!id) return [];
+  var ss;
+  try { ss = SpreadsheetApp.openById(id); } catch(e) { return []; }
+  var sh = ss.getSheetByName('Envios');
+  if (!sh) return [];
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(token).trim()) {
+      return String(data[i][6] || '').split(' | ').filter(Boolean);
+    }
+  }
+  return [];
 }
 
 function listarEnvios() {
@@ -300,31 +444,22 @@ function listarEnvios() {
   return envios.reverse();
 }
 
-function validarToken(token) {
-  if (!token) return { valido: false, usado: false };
-  var sh = getTokenSheet();
-  var data = sh.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === String(token).trim()) {
-      if (data[i][4] === true) return { valido: false, usado: true };
-      var unidadeNome = String(data[i][2]);
-      var unidadeId   = UNIDADES[unidadeNome] || unidadeNome;
-      return { valido: true, token: token, unidadeId: unidadeId, unidadeNome: unidadeNome };
-    }
-  }
-  return { valido: false, usado: false };
-}
+function enviarEmailPendencias(dados, pendentes) {
+  var url  = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL');
+  var link = url + '?token=' + dados.token;
+  var lista = pendentes.map(function(p) { return '• ' + p; }).join('\n');
 
-function marcarTokenUsado(token) {
-  var sh = getTokenSheet();
-  var data = sh.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === String(token).trim()) {
-      sh.getRange(i + 1, 5).setValue(true);
-      sh.getRange(i + 1, 6).setValue(new Date());
-      return;
-    }
-  }
+  MailApp.sendEmail({
+    to:      dados.email,
+    subject: 'BRASAS – Documentos pendentes para sua pré-admissão',
+    body:    'Olá, ' + dados.nomeCompleto + '!\n\n' +
+             'Recebemos seu formulário de pré-admissão. Porém, os seguintes documentos ainda estão pendentes:\n\n' +
+             lista + '\n\n' +
+             'Acesse o mesmo link abaixo para completar o envio:\n' +
+             link + '\n\n' +
+             'Em caso de dúvidas: dp@brasas.com\n\n' +
+             'Equipe BRASAS DP'
+  });
 }
 
 // ── Erro ─────────────────────────────────────────────────────────────────────

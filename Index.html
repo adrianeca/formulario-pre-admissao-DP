@@ -142,6 +142,8 @@
     }
     .badge-req { font-size: 10px; font-weight: 600; color: #c62828; background: #ffebee; padding: 2px 7px; border-radius: 10px; }
     .badge-opc { font-size: 10px; font-weight: 500; color: #666; background: #f5f5f5; padding: 2px 7px; border-radius: 10px; }
+    .check-depois { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; color: #888; cursor: pointer; user-select: none; }
+    .check-depois input[type="checkbox"] { display: inline; width: auto; accent-color: #f9a825; cursor: pointer; }
 
     .file-btn {
       display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -451,6 +453,9 @@
   var _TOKEN        = '<?= TOKEN ?>';
   var _UNIDADE_ID   = '<?= UNIDADE_ID ?>';
   var _UNIDADE_NOME = '<?= UNIDADE_NOME ?>';
+  var _STATUS       = '<?= STATUS ?>';
+  var _CANDIDATO    = '<?= CANDIDATO ?>';
+  var _PENDENTES    = <?!= PENDENTES ?>;
 
   // ── Definição dos documentos ──────────────────────────────────────────────
   var DOCS = [
@@ -471,9 +476,14 @@
     { id: 'antecedentes',   rotulo: 'ANTECEDENTES CRIMINAIS',                                   req: true  },
   ];
 
+  // ── Modo incompleto: filtra apenas docs pendentes ────────────────────────
+  var DOCS_RENDER = (_STATUS === 'incompleto' && _PENDENTES.length > 0)
+    ? DOCS.filter(function(d) { return _PENDENTES.indexOf(d.rotulo) !== -1; })
+    : DOCS;
+
   // ── Gerar UI de upload ────────────────────────────────────────────────────
   var lista = document.getElementById('listaDocumentos');
-  DOCS.forEach(function(doc) {
+  DOCS_RENDER.forEach(function(doc) {
     var div = document.createElement('div');
     div.className = 'doc-item';
     div.id = 'item-' + doc.id;
@@ -497,7 +507,11 @@
       '</label>' +
       '<input type="file" id="file-' + doc.id + '" accept=".jpg,.jpeg,.png,.pdf" multiple>' +
       '<div class="preview-lista" id="preview-' + doc.id + '"></div>' +
-      numHtml;
+      numHtml +
+      '<label class="check-depois" id="check-depois-' + doc.id + '">' +
+        '<input type="checkbox" id="depois-' + doc.id + '" onchange="toggleDepois(\'' + doc.id + '\')">' +
+        ' Não tenho agora, enviarei depois' +
+      '</label>';
 
     lista.appendChild(div);
 
@@ -506,6 +520,34 @@
       adicionarArquivos(doc.id, this);
     });
   });
+
+  // ── Checkbox "enviarei depois" ────────────────────────────────────────────
+  function toggleDepois(id) {
+    var checked  = document.getElementById('depois-' + id).checked;
+    var fileBtn  = document.getElementById('btn-' + id);
+    var fileInput = document.getElementById('file-' + id);
+    if (checked) {
+      fileBtn.style.opacity = '0.4';
+      fileBtn.style.pointerEvents = 'none';
+      fileInput.disabled = true;
+    } else {
+      fileBtn.style.opacity = '';
+      fileBtn.style.pointerEvents = '';
+      fileInput.disabled = false;
+    }
+  }
+
+  // ── Modo incompleto: ajusta UI ────────────────────────────────────────────
+  if (_STATUS === 'incompleto') {
+    var cards = document.querySelectorAll('.card');
+    for (var ci = 0; ci < cards.length - 1; ci++) { cards[ci].style.display = 'none'; }
+    var avisoEl = document.querySelector('.aviso');
+    if (avisoEl) avisoEl.style.display = 'none';
+    document.querySelector('.header h1').textContent = 'Complemento de Documentos';
+    document.querySelector('.header p').textContent  =
+      'Olá, ' + _CANDIDATO + '! Envie os documentos pendentes abaixo.';
+    document.querySelector('.btn-enviar').textContent = 'Enviar Documentos';
+  }
 
   // ── Pré-preencher e travar unidade se veio do token ──────────────────────
   if (_UNIDADE_ID) {
@@ -683,51 +725,67 @@
   function validarFormulario() {
     var ok = true;
 
-    // E-mail
-    var email = document.getElementById('email').value.trim();
-    var emailOk = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    mostrarErro('email', !emailOk); if (!emailOk) ok = false;
+    if (_STATUS !== 'incompleto') {
+      // E-mail
+      var email = document.getElementById('email').value.trim();
+      var emailOk = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      mostrarErro('email', !emailOk); if (!emailOk) ok = false;
 
-    // Nome
-    var nome = document.getElementById('nomeCompleto').value.trim();
-    mostrarErro('nomeCompleto', !nome); if (!nome) ok = false;
+      // Nome
+      var nome = document.getElementById('nomeCompleto').value.trim();
+      mostrarErro('nomeCompleto', !nome); if (!nome) ok = false;
 
-    // CPF
-    var cpf = document.getElementById('cpf').value;
-    var cpfOk = validarCPF(cpf);
-    mostrarErro('cpf', !cpfOk); if (!cpfOk) ok = false;
+      // CPF
+      var cpf = document.getElementById('cpf').value;
+      var cpfOk = validarCPF(cpf);
+      mostrarErro('cpf', !cpfOk); if (!cpfOk) ok = false;
 
-    // Data de nascimento
-    var dn = document.getElementById('dataNascimento').value;
-    mostrarErro('dataNascimento', !dn); if (!dn) ok = false;
+      // Data de nascimento
+      var dn = document.getElementById('dataNascimento').value;
+      mostrarErro('dataNascimento', !dn); if (!dn) ok = false;
 
-    // Telefone
-    var tel = document.getElementById('telefone').value.replace(/\D/g,'');
-    var telOk = tel.length >= 10;
-    mostrarErro('telefone', !telOk); if (!telOk) ok = false;
+      // Telefone
+      var tel = document.getElementById('telefone').value.replace(/\D/g,'');
+      var telOk = tel.length >= 10;
+      mostrarErro('telefone', !telOk); if (!telOk) ok = false;
 
-    // Unidade
-    var un = document.getElementById('unidade').value;
-    mostrarErro('unidade', !un); if (!un) ok = false;
+      // Unidade
+      var un = document.getElementById('unidade').value;
+      mostrarErro('unidade', !un); if (!un) ok = false;
 
-    // Conta Itaú
-    var itau = document.querySelector('input[name="contaItau"]:checked');
-    mostrarErroNome('contaItau', !itau); if (!itau) ok = false;
+      // Conta Itaú
+      var itau = document.querySelector('input[name="contaItau"]:checked');
+      mostrarErroNome('contaItau', !itau); if (!itau) ok = false;
 
-    // Vale Transporte
-    var vt = document.querySelector('input[name="valeTransporte"]:checked');
-    mostrarErroNome('valeTransporte', !vt); if (!vt) ok = false;
+      // Vale Transporte
+      var vt = document.querySelector('input[name="valeTransporte"]:checked');
+      mostrarErroNome('valeTransporte', !vt); if (!vt) ok = false;
 
-    // Campos condicionais do VT
-    if (vt && vt.value === 'Sim') {
-      var bu = document.querySelector('input[name="bilheteUnico"]:checked');
-      mostrarErroNome('bilheteUnico', !bu); if (!bu) ok = false;
+      if (vt && vt.value === 'Sim') {
+        var bu = document.querySelector('input[name="bilheteUnico"]:checked');
+        mostrarErroNome('bilheteUnico', !bu); if (!bu) ok = false;
 
-      ['cepOrigem','ruaNumeroOrigem','bairroOrigem','modalTransporte','qtdConducoes'].forEach(function(f) {
-        var v = document.getElementById(f).value.trim();
-        mostrarErro(f, !v); if (!v) ok = false;
-      });
+        ['cepOrigem','ruaNumeroOrigem','bairroOrigem','modalTransporte','qtdConducoes'].forEach(function(f) {
+          var v = document.getElementById(f).value.trim();
+          mostrarErro(f, !v); if (!v) ok = false;
+        });
+      }
     }
+
+    // Documentos obrigatórios: precisa de arquivo OU checkbox "depois" marcado OU número
+    DOCS_RENDER.forEach(function(doc) {
+      if (!doc.req) return;
+      var temArquivo   = (filesMap[doc.id] || []).length > 0;
+      var depoisEl     = document.getElementById('depois-' + doc.id);
+      var marcouDepois = depoisEl && depoisEl.checked;
+      var numEl        = doc.numId && document.getElementById(doc.numId);
+      var temNumero    = numEl && numEl.value.trim();
+      if (!temArquivo && !marcouDepois && !temNumero) {
+        var itemEl = document.getElementById('item-' + doc.id);
+        if (itemEl) itemEl.style.border = '2px solid #c62828';
+        ok = false;
+      }
+    });
 
     return ok;
   }
@@ -747,8 +805,9 @@
 
   async function coletarDocumentos() {
     var resultado = [];
-    for (var i = 0; i < DOCS.length; i++) {
-      var doc   = DOCS[i];
+    var lista = (_STATUS === 'incompleto') ? DOCS_RENDER : DOCS;
+    for (var i = 0; i < lista.length; i++) {
+      var doc   = lista[i];
       var files = filesMap[doc.id] || [];
       if (files.length > 0) {
         for (var j = 0; j < files.length; j++) {
@@ -789,46 +848,66 @@
 
     var documentos = await coletarDocumentos();
 
-    var vtSim = document.querySelector('input[name="valeTransporte"]:checked').value === 'Sim';
-
-    var dados = {
-      email:           document.getElementById('email').value.trim(),
-      nomeCompleto:    document.getElementById('nomeCompleto').value.trim(),
-      cpf:             document.getElementById('cpf').value,
-      dataNascimento:  formatarData(document.getElementById('dataNascimento').value),
-      telefone:        document.getElementById('telefone').value,
-      token:           _TOKEN,
-      unidade:         _UNIDADE_ID || document.getElementById('unidade').value,
-      nomeUnidade:     _UNIDADE_NOME || document.getElementById('unidade').options[document.getElementById('unidade').selectedIndex].text,
-      contaItau:       document.querySelector('input[name="contaItau"]:checked').value,
-      valeTransporte:  document.querySelector('input[name="valeTransporte"]:checked').value,
-      bilheteUnico:    vtSim ? (document.querySelector('input[name="bilheteUnico"]:checked') || {value:''}).value : '',
-      cepOrigem:       vtSim ? document.getElementById('cepOrigem').value.trim() : '',
-      ruaNumeroOrigem: vtSim ? document.getElementById('ruaNumeroOrigem').value.trim() : '',
-      bairroOrigem:    vtSim ? document.getElementById('bairroOrigem').value.trim() : '',
-      modalTransporte: vtSim ? document.getElementById('modalTransporte').value.trim() : '',
-      qtdConducoes:    vtSim ? document.getElementById('qtdConducoes').value.trim() : '',
-      numPisPasep:     (document.getElementById('numPisPasep') || {}).value || '',
-      numReservista:   (document.getElementById('numReservista') || {}).value || '',
-      documentos:      documentos
-    };
-
-    google.script.run
-      .withSuccessHandler(function(res) {
-        document.getElementById('overlayLoading').classList.remove('ativo');
-        if (res.sucesso) {
-          document.getElementById('telaSucesso').classList.add('ativo');
-        } else {
-          document.getElementById('btnEnviar').disabled = false;
-          mostrarBannerErro('Ocorreu um erro ao processar o formulário: ' + (res.erro || 'erro desconhecido.'));
+    function aoSucesso(res) {
+      document.getElementById('overlayLoading').classList.remove('ativo');
+      if (res.sucesso) {
+        var msg = document.querySelector('.sucesso-msg');
+        if (res.pendentes && res.pendentes.length > 0) {
+          document.querySelector('.sucesso-titulo').textContent = 'Recebido!';
+          msg.innerHTML = 'Seus documentos foram recebidos.<br><br>' +
+            '<strong>Ainda pendentes:</strong><br>' +
+            res.pendentes.map(function(p) { return '• ' + p; }).join('<br>') +
+            '<br><br>Você receberá um e-mail com o link para enviar os documentos restantes.';
+        } else if (_STATUS === 'incompleto') {
+          document.querySelector('.sucesso-titulo').textContent = 'Processo completo!';
+          msg.innerHTML = 'Todos os documentos foram recebidos com sucesso.<br>Em breve entraremos em contato.';
         }
-      })
-      .withFailureHandler(function(err) {
-        document.getElementById('overlayLoading').classList.remove('ativo');
+        document.getElementById('telaSucesso').classList.add('ativo');
+      } else {
         document.getElementById('btnEnviar').disabled = false;
-        mostrarBannerErro('Falha na comunicação com o servidor. Tente novamente. Detalhe: ' + err.message);
-      })
-      .processarFormulario(dados);
+        mostrarBannerErro('Ocorreu um erro: ' + (res.erro || 'erro desconhecido.'));
+      }
+    }
+
+    function aoErro(err) {
+      document.getElementById('overlayLoading').classList.remove('ativo');
+      document.getElementById('btnEnviar').disabled = false;
+      mostrarBannerErro('Falha na comunicação com o servidor. Tente novamente. Detalhe: ' + err.message);
+    }
+
+    if (_STATUS === 'incompleto') {
+      google.script.run
+        .withSuccessHandler(aoSucesso)
+        .withFailureHandler(aoErro)
+        .completarDocumentos(_TOKEN, documentos);
+    } else {
+      var vtSim = document.querySelector('input[name="valeTransporte"]:checked').value === 'Sim';
+      var dados = {
+        email:           document.getElementById('email').value.trim(),
+        nomeCompleto:    document.getElementById('nomeCompleto').value.trim(),
+        cpf:             document.getElementById('cpf').value,
+        dataNascimento:  formatarData(document.getElementById('dataNascimento').value),
+        telefone:        document.getElementById('telefone').value,
+        token:           _TOKEN,
+        unidade:         _UNIDADE_ID || document.getElementById('unidade').value,
+        nomeUnidade:     _UNIDADE_NOME || document.getElementById('unidade').options[document.getElementById('unidade').selectedIndex].text,
+        contaItau:       document.querySelector('input[name="contaItau"]:checked').value,
+        valeTransporte:  document.querySelector('input[name="valeTransporte"]:checked').value,
+        bilheteUnico:    vtSim ? (document.querySelector('input[name="bilheteUnico"]:checked') || {value:''}).value : '',
+        cepOrigem:       vtSim ? document.getElementById('cepOrigem').value.trim() : '',
+        ruaNumeroOrigem: vtSim ? document.getElementById('ruaNumeroOrigem').value.trim() : '',
+        bairroOrigem:    vtSim ? document.getElementById('bairroOrigem').value.trim() : '',
+        modalTransporte: vtSim ? document.getElementById('modalTransporte').value.trim() : '',
+        qtdConducoes:    vtSim ? document.getElementById('qtdConducoes').value.trim() : '',
+        numPisPasep:     (document.getElementById('numPisPasep') || {}).value || '',
+        numReservista:   (document.getElementById('numReservista') || {}).value || '',
+        documentos:      documentos
+      };
+      google.script.run
+        .withSuccessHandler(aoSucesso)
+        .withFailureHandler(aoErro)
+        .processarFormulario(dados);
+    }
   });
 
   function mostrarBannerErro(msg) {
