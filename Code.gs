@@ -135,7 +135,7 @@ function doGet(e) {
   if (p.dp === '1') {
     var webappUrl = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') || '';
     var tmplAdmin = HtmlService.createTemplateFromFile('Admin');
-    tmplAdmin.SESSION_TOKEN = p.session || '';
+    tmplAdmin.SESSION_TOKEN = p.session || p.s || '';
     tmplAdmin.HUB_URL       = HUB_URL + '?next=' + encodeURIComponent(webappUrl + '?dp=1');
     return tmplAdmin.evaluate()
       .setTitle('BRASAS DP – Painel de Admissão')
