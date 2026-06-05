@@ -14,7 +14,8 @@ O acesso ao formulário é controlado por **token único por URL**: o DP gera um
 |---|---|
 | `Code.gs` | Script servidor (Google Apps Script). Roteamento, validação de token, processamento do formulário, criação de pasta/PDF no Drive. |
 | `Index.html` | Formulário HTML completo com CSS e JavaScript embutidos. Servido como Web App via `HtmlService`. |
-| `Admin.html` | Painel do DP para geração de links (ainda não integrado — ver Pendências). |
+| `Admin.html` | Painel do DP: geração de links avulsos, lista de tokens, solicitações dos diretores e formulários recebidos. Usa sintaxe de template GAS (`<?= ?>`). |
+| `Diretor.html` | Formulário preenchido pelo diretor para solicitar admissão de um candidato. |
 
 ---
 
@@ -58,6 +59,26 @@ Pasta pai/
       CPF_documento.PDF
       ...
 ```
+
+---
+
+## Acesso ao painel do DP (`?dp=1`)
+
+O painel do DP é protegido por autenticação via **Hub BRASAS Analytics**. O fluxo é:
+
+1. Usuário acessa `WEBAPP_URL?dp=1` → vê tela com botão "Entrar com conta BRASAS"
+2. Clica → redirecionado ao Hub com `?next=WEBAPP_URL?dp=1`
+3. Hub autentica via Google OAuth → cria sessão na aba **SESSOES** da planilha de usuários → redireciona de volta com `?dp=1&session=TOKEN`
+4. `Admin.html` valida o token via `validarSessaoHub(token)` (aba SESSOES, verifica validade e role)
+5. Roles autorizadas: **`admin`** e **`dp`** (configuradas na planilha `SHEET_USUARIOS_ID`)
+
+### Planilha de usuários
+`https://docs.google.com/spreadsheets/d/1eZPbzhzjhjHoPwMhAW5YvOZgYiAvlTYc07dRan6Lyoc`
+
+Aba **USUARIOS** — colunas relevantes: `EMAIL`, `NOME`, `ROLE`, `ATIVO`
+
+### Alteração necessária no Hub
+O `doGet` do Hub precisa aceitar o parâmetro `?next=URL`. Ao receber esse parâmetro com usuário autenticado, deve criar a sessão e redirecionar para `next_url?session=TOKEN`. Ver código no histórico da conversa.
 
 ---
 
@@ -151,6 +172,12 @@ O DP acessa a planilha criada por `inicializar()` e preenche uma linha por candi
 
 ## Pendências
 
-- [ ] **Painel do DP como Web App** — `Admin.html` foi criado mas ainda não está integrado ao roteamento. A ideia é criar **duas implantações** do mesmo script: uma pública (formulário com `?token=`) e uma restrita (`@brasas.com`) para o painel admin com `?dp=1`. Assim o Google garante o acesso sem precisar de senha.
+- [ ] **Aplicar alteração no Hub** — modificar `doGet` do Hub BRASAS Analytics para suportar `?next=URL` e redirecionar com o token de sessão após autenticação
+- [ ] **Reimplantar ambos os projetos** no GAS após as alterações
 - [ ] **Envio de e-mail automático** ao diretor da unidade e ao DP (`dp@brasas.com`) após envio do formulário
 - [ ] **Lista de e-mails dos diretores por unidade** (aguardando fornecimento)
+
+## Decisões de UX registradas
+
+- Status das solicitações renomeado de "Link enviado" → **"Link gerado"** (o link não é enviado automaticamente, precisa ser copiado e enviado pelo DP)
+- Botões de atualizar individuais por seção removidos → **único botão "↻ Atualizar" no canto superior direito** do header do painel DP

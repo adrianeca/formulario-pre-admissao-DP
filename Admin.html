@@ -10,6 +10,7 @@
     .header {
       background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
       color: #fff; padding: 24px 32px;
+      display: flex; align-items: center; justify-content: space-between;
     }
     .header h1 { font-size: 20px; font-weight: 700; }
     .header p  { font-size: 13px; opacity: 0.75; margin-top: 4px; }
@@ -75,8 +76,13 @@
 
     .vazio   { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
     .loading { text-align: center; color: #888; padding: 20px; font-size: 14px; }
-    .refresh-btn { background: none; border: none; color: #3949ab; cursor: pointer; font-size: 13px; font-weight: 600; margin-left: 12px; }
-    .refresh-btn:hover { text-decoration: underline; }
+    .btn-atualizar-tudo {
+      padding: 8px 18px; background: rgba(255,255,255,0.15); color: #fff;
+      border: 1.5px solid rgba(255,255,255,0.5); border-radius: 7px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: background .18s;
+      white-space: nowrap;
+    }
+    .btn-atualizar-tudo:hover { background: rgba(255,255,255,0.25); }
 
     .docs-detalhe { display: flex; gap: 24px; padding: 14px 12px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; }
     .docs-col { flex: 1; min-width: 200px; }
@@ -88,23 +94,62 @@
     .enviados-col li::before { content: '✓ '; color: #2e7d32; font-weight: 700; }
     .pendentes-col li::before { content: '✗ '; color: #c62828; font-weight: 700; }
     .detail-row td { padding: 8px 12px !important; }
+
+    /* Tela de login */
+    .login-overlay {
+      position: fixed; inset: 0; background: #f0f2f5;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999;
+    }
+    .login-card {
+      background: #fff; border-radius: 12px; padding: 40px 36px;
+      max-width: 400px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,.12);
+      text-align: center;
+    }
+    .login-logo { font-size: 36px; margin-bottom: 12px; }
+    .login-card h2 { font-size: 18px; font-weight: 700; color: #1a237e; margin-bottom: 4px; }
+    .login-card p  { font-size: 13px; color: #888; margin-bottom: 28px; }
+    .login-card input {
+      width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: 14px; margin-bottom: 14px; transition: border-color .18s;
+    }
+    .login-card input:focus { outline: none; border-color: #3949ab; box-shadow: 0 0 0 3px rgba(57,73,171,.12); }
+    .login-card .btn-entrar {
+      display: block; width: 100%; padding: 12px; background: #1a237e; color: #fff;
+      border: none; border-radius: 8px; font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: background .18s; text-decoration: none;
+      text-align: center;
+    }
+    .login-card .btn-entrar:hover { background: #283593; }
+    .login-erro { margin-top: 14px; padding: 10px 14px; background: #ffebee; border-left: 3px solid #c62828; border-radius: 6px; font-size: 13px; color: #b71c1c; display: none; text-align: left; }
   </style>
 </head>
 <body>
 
+<!-- Tela de login -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">🔒</div>
+    <h2>BRASAS DP – Painel Administrativo</h2>
+    <p id="loginMsg">Acesse com sua conta BRASAS</p>
+    <a class="btn-entrar" id="btnEntrar" href="<?= HUB_URL ?>">Entrar com conta BRASAS</a>
+    <div class="login-erro" id="loginErro"></div>
+  </div>
+</div>
+
 <div class="header">
-  <h1>BRASAS DP – Controle de Admissões</h1>
-  <p>Painel administrativo – Pré-Admissão</p>
+  <div>
+    <h1>BRASAS DP – Controle de Admissões</h1>
+    <p>Painel administrativo – Pré-Admissão &nbsp;|&nbsp; <span id="usuarioLogado"></span></p>
+  </div>
+  <button class="btn-atualizar-tudo" onclick="atualizarTudo(this)">↻ Atualizar</button>
 </div>
 
 <div class="container">
 
   <!-- Solicitações dos diretores -->
   <div class="card">
-    <div class="card-titulo">
-      Solicitações dos Diretores
-      <button class="refresh-btn" onclick="carregarSolicitacoes()">↻ Atualizar</button>
-    </div>
+    <div class="card-titulo">Solicitações dos Diretores</div>
     <div id="solicitacoesContainer"><div class="loading">Carregando...</div></div>
   </div>
 
@@ -164,19 +209,13 @@
 
   <!-- Tabela de tokens -->
   <div class="card">
-    <div class="card-titulo">
-      Links gerados
-      <button class="refresh-btn" onclick="carregarTokens()">↻ Atualizar</button>
-    </div>
+    <div class="card-titulo">Links gerados</div>
     <div id="tabelaContainer"><div class="loading">Carregando...</div></div>
   </div>
 
   <!-- Formulários recebidos -->
   <div class="card">
-    <div class="card-titulo">
-      Formulários recebidos
-      <button class="refresh-btn" onclick="carregarEnvios()">↻ Atualizar</button>
-    </div>
+    <div class="card-titulo">Formulários recebidos</div>
     <div id="enviosContainer"><div class="loading">Carregando...</div></div>
   </div>
 
@@ -184,6 +223,37 @@
 
 <script>
   var _ultimoLink = '';
+
+  // ── Login via Hub ──────────────────────────────────────────────────────────
+
+  var _sessionToken = '<?= SESSION_TOKEN ?>';
+
+  function mostrarErroLogin(msg) {
+    var el = document.getElementById('loginErro');
+    el.textContent = msg;
+    el.style.display = 'block';
+    document.getElementById('loginMsg').textContent = 'Acesse com sua conta BRASAS';
+    document.getElementById('btnEntrar').style.display = 'block';
+  }
+
+  // Valida automaticamente o token recebido do hub
+  if (_sessionToken) {
+    document.getElementById('loginMsg').textContent = 'Verificando sessão...';
+    document.getElementById('btnEntrar').style.display = 'none';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.autorizado) {
+          document.getElementById('loginOverlay').style.display = 'none';
+          document.getElementById('usuarioLogado').textContent = res.nome;
+        } else {
+          mostrarErroLogin(res.motivo);
+        }
+      })
+      .withFailureHandler(function() {
+        mostrarErroLogin('Erro ao verificar sessão. Tente novamente.');
+      })
+      .validarSessaoHub(_sessionToken);
+  }
 
   // ── Solicitações dos diretores ──────────────────────────────────────────────
 
@@ -214,7 +284,7 @@
       var badge;
       switch (s.status) {
         case 'Pendente':     badge = '<span class="badge badge-sol-pendente">Aguardando link</span>'; break;
-        case 'Link enviado': badge = '<span class="badge badge-sol-enviado">Link enviado</span>';    break;
+        case 'Link gerado':  badge = '<span class="badge badge-sol-enviado">Link gerado</span>';    break;
         case 'Em andamento': badge = '<span class="badge badge-sol-andamento">Em andamento</span>'; break;
         case 'Concluído':    badge = '<span class="badge badge-sol-concluido">Concluído ✓</span>'; break;
         default:             badge = '<span class="badge badge-sol-pendente">' + s.status + '</span>';
@@ -453,6 +523,16 @@
   function toggleDocs(idx) {
     var row = document.getElementById('docs-row-' + idx);
     row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+  }
+
+  function atualizarTudo(btn) {
+    var orig = btn.textContent;
+    btn.textContent = 'Atualizando...';
+    btn.disabled = true;
+    setTimeout(function() { btn.textContent = orig; btn.disabled = false; }, 2000);
+    carregarSolicitacoes();
+    carregarTokens();
+    carregarEnvios();
   }
 
   // Carrega tudo ao abrir

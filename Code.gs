@@ -1,4 +1,6 @@
-const PASTA_PAI_ID = '1IuU9YLh4kiXg1p-xgNiZruUL9ddnD345';
+const PASTA_PAI_ID      = '1IuU9YLh4kiXg1p-xgNiZruUL9ddnD345';
+const SHEET_USUARIOS_ID = '1eZPbzhzjhjHoPwMhAW5YvOZgYiAvlTYc07dRan6Lyoc';
+const HUB_URL           = 'https://script.google.com/a/macros/brasas.com/s/AKfycbyF7BArYMYFtcQY7_4RTGGPw89yNohAjR7eGptItP-EsnWhNfiZR2ISRaHdAkwlLSlr/exec';
 
 const UNIDADES = {
   'Bangu':              'BG Assessoria Linguística Ltda',
@@ -62,6 +64,46 @@ const EMAILS_DIRETORES = {
   'Vila Valqueire':     ['dirvq@brasas.com']
 };
 
+// ── Controle de acesso ao painel DP (via sessão do Hub) ──────────────────────
+
+function validarSessaoHub(token) {
+  if (!token) return { autorizado: false, motivo: 'Sessão não informada.' };
+  try {
+    var ss       = SpreadsheetApp.openById(SHEET_USUARIOS_ID);
+    var sesSheet = ss.getSheetByName('SESSOES');
+    if (!sesSheet) return { autorizado: false, motivo: 'Sessão inválida.' };
+
+    var data = sesSheet.getDataRange().getValues();
+    var now  = new Date();
+
+    // Colunas SESSOES: TOKEN, EMAIL, NOME, ROLE, UNIDADE, CRIADO_EM, EXPIRA_EM
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) !== String(token)) continue;
+
+      var expira = data[i][6] ? new Date(data[i][6]) : null;
+      if (!expira || expira < now) {
+        return { autorizado: false, motivo: 'Sessão expirada. Faça login novamente no Hub.' };
+      }
+
+      var role = String(data[i][3] || '').trim().toLowerCase();
+      if (role === 'admin' || role === 'dp') {
+        return {
+          autorizado: true,
+          nome:  String(data[i][2] || '').trim(),
+          email: String(data[i][1] || '').trim(),
+          role:  role
+        };
+      }
+      return { autorizado: false, motivo: 'Sem permissão para acessar o painel do DP.' };
+    }
+
+    return { autorizado: false, motivo: 'Sessão inválida.' };
+  } catch (e) {
+    Logger.log(e.toString());
+    return { autorizado: false, motivo: 'Erro ao validar sessão.' };
+  }
+}
+
 // ── Setup (executar UMA VEZ após implantar o Web App) ─────────────────────────
 
 function inicializar() {
@@ -91,7 +133,11 @@ function doGet(e) {
   var p = (e && e.parameter) ? e.parameter : {};
 
   if (p.dp === '1') {
-    return HtmlService.createHtmlOutputFromFile('Admin')
+    var webappUrl = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') || '';
+    var tmplAdmin = HtmlService.createTemplateFromFile('Admin');
+    tmplAdmin.SESSION_TOKEN = p.session || '';
+    tmplAdmin.HUB_URL       = HUB_URL + '?next=' + encodeURIComponent(webappUrl + '?dp=1');
+    return tmplAdmin.evaluate()
       .setTitle('BRASAS DP – Painel de Admissão')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
@@ -327,7 +373,7 @@ function criarTokenParaSolicitacao(solicitacaoId) {
   sh.getRange(row, 7).setValue(new Date());
   sh.getRange(row, 8).setValue(solicitacaoId);
 
-  solSh.getRange(solRow, 8).setValue('Link enviado');
+  solSh.getRange(solRow, 8).setValue('Link gerado');
   solSh.getRange(solRow, 9).setValue(token);
 
   return { url: link, token: token, candidato: candidato, unidade: unidadeNome };
