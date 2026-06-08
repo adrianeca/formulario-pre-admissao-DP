@@ -71,6 +71,8 @@
     .btn-acao-gerar:disabled { background: #9fa8da; cursor: not-allowed; }
     .btn-copiar-link { padding: 4px 12px; background: #e8eaf6; border: none; border-radius: 5px; font-size: 12px; color: #1a237e; cursor: pointer; font-weight: 600; }
     .btn-copiar-link:hover { background: #c5cae9; }
+    .btn-excluir { padding: 4px 10px; background: #ffebee; border: none; border-radius: 5px; font-size: 12px; color: #c62828; cursor: pointer; font-weight: 600; }
+    .btn-excluir:hover { background: #ffcdd2; }
 
     .link-inline { font-family: monospace; font-size: 11px; color: #555; word-break: break-all; display: block; margin-top: 4px; max-width: 280px; }
 
@@ -163,38 +165,8 @@
       </div>
       <div class="form-group" style="flex:2">
         <label for="selectUnidade">Unidade</label>
-        <select id="selectUnidade">
-          <option value="">— Selecione —</option>
-          <option value="BG Assessoria Linguística Ltda|Bangu">Bangu</option>
-          <option value="Kansas Assessoria Linguística Ltda|Botafogo">Botafogo</option>
-          <option value="BRASAS On Demand Assessoria Linguística Ltda|BRASAS On Demand">BRASAS On Demand</option>
-          <option value="NS Assessoria Linguística Ltda|Cachambi">Cachambi</option>
-          <option value="CG Assessoria Linguística Ltda|Campo Grande">Campo Grande</option>
-          <option value="The West School Of English Ltda|Copacabana">Copacabana</option>
-          <option value="Caxias Assessoria Linguística Ltda|Caxias">Caxias</option>
-          <option value="DT Assessoria Linguística Ltda|Downtown">Downtown</option>
-          <option value="Editora Eficiencia Ltda|Editora">Editora</option>
-          <option value="Ec New Assessoria Linguística Ltda|EC">EC</option>
-          <option value="FG Assessoria Linguística Ltda|Freguesia">Freguesia</option>
-          <option value="GR Assessoria Linguística Ltda|Grajaú">Grajaú</option>
-          <option value="Cambaúba Assessoria Linguística Ltda|Ilha do Governador">Ilha do Governador</option>
-          <option value="New Concepts Assessoria Linguística Ltda|Ipanema">Ipanema</option>
-          <option value="IT Assessoria Linguística Ltda|Itaipu">Itaipu</option>
-          <option value="LJ Assessoria Linguística Ltda|Laranjeiras">Laranjeiras</option>
-          <option value="MRI Assessoria Linguística Ltda|Méier">Méier</option>
-          <option value="Métodos de Ensino Brasas Ltda|Métodos">Métodos</option>
-          <option value="NI Assessoria Linguística Ltda|Nova Iguaçu">Nova Iguaçu</option>
-          <option value="NT Assessoria Linguística Ltda|Niterói">Niterói</option>
-          <option value="Bal Barra Assessoria Linguística Ltda|Novo Leblon">Novo Leblon</option>
-          <option value="P.O Assessoria Linguística Ltda|Parque Olímpico">Parque Olímpico</option>
-          <option value="PC Assessoria Linguística Ltda|Pechincha">Pechincha</option>
-          <option value="PN Assessoria Linguística Ltda|Península">Península</option>
-          <option value="RC Assessoria Linguística Ltda|Recreio">Recreio</option>
-          <option value="TQ Assessoria Linguística Ltda|Taquara">Taquara</option>
-          <option value="TJ Assessoria Linguística Ltda|Tijuca">Tijuca</option>
-          <option value="VP Assessoria Linguística Ltda|Vila da Penha">Vila da Penha</option>
-          <option value="BCSP Assessoria Linguística Ltda|Vila Olímpia">Vila Olímpia</option>
-          <option value="Lexicon Assessoria Linguística Ltda|Vila Valqueire">Vila Valqueire</option>
+        <select id="selectUnidade" disabled>
+          <option value="">Carregando...</option>
         </select>
       </div>
       <button class="btn-gerar" id="btnGerar" onclick="gerarToken()">Gerar link</button>
@@ -210,6 +182,14 @@
   <!-- Tabela de tokens -->
   <div class="card">
     <div class="card-titulo">Links gerados</div>
+    <div id="filtroTokensBar" style="display:none; margin-bottom:14px; gap:10px; flex-wrap:wrap; align-items:center">
+      <input type="text" id="filtroCandidatoInput" placeholder="Buscar por nome..." oninput="aplicarFiltroTokens()"
+        style="flex:1; min-width:180px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:14px">
+      <select id="filtroUnidadeSelect" onchange="aplicarFiltroTokens()"
+        style="flex:1; min-width:180px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:14px; background:#fff">
+        <option value="">Todas as unidades</option>
+      </select>
+    </div>
     <div id="tabelaContainer"><div class="loading">Carregando...</div></div>
   </div>
 
@@ -223,6 +203,11 @@
 
 <script>
   var _ultimoLink = '';
+  var _tokensCache = [];
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
   // ── Login via Hub ──────────────────────────────────────────────────────────
 
@@ -245,6 +230,10 @@
         if (res.autorizado) {
           document.getElementById('loginOverlay').style.display = 'none';
           document.getElementById('usuarioLogado').textContent = res.nome;
+          carregarSolicitacoes();
+          carregarTokens();
+          carregarEnvios();
+          google.script.run.withSuccessHandler(preencherSelectUnidades).listarUnidades();
         } else {
           mostrarErroLogin(res.motivo);
         }
@@ -287,7 +276,7 @@
         case 'Link gerado':  badge = '<span class="badge badge-sol-enviado">Link gerado</span>';    break;
         case 'Em andamento': badge = '<span class="badge badge-sol-andamento">Em andamento</span>'; break;
         case 'Concluído':    badge = '<span class="badge badge-sol-concluido">Concluído ✓</span>'; break;
-        default:             badge = '<span class="badge badge-sol-pendente">' + s.status + '</span>';
+        default:             badge = '<span class="badge badge-sol-pendente">' + esc(s.status) + '</span>';
       }
 
       var acao = '';
@@ -295,16 +284,16 @@
         acao = '<button class="btn-acao btn-acao-gerar" id="btn-sol-' + s.id + '" ' +
                'onclick="gerarLinkSolicitacao(\'' + s.id + '\')">Gerar link</button>';
       } else if (s.linkCandidato) {
-        acao = '<button class="btn-copiar-link" data-link="' + s.linkCandidato + '" ' +
+        acao = '<button class="btn-copiar-link" data-link="' + esc(s.linkCandidato) + '" ' +
                'onclick="copiarLinkSolicitacao(this, \'' + s.linkCandidato + '\')">Copiar link</button>';
       }
 
       html += '<tr>' +
-        '<td><strong>' + (s.nome     || '—') + '</strong></td>' +
-        '<td>' + (s.unidade          || '—') + '</td>' +
-        '<td>' + (s.cargo            || '—') + '</td>' +
-        '<td>' + (s.dataAdmissao     || '—') + '</td>' +
-        '<td>' + (s.criado           || '—') + '</td>' +
+        '<td><strong>' + (esc(s.nome)        || '—') + '</strong></td>' +
+        '<td>' + (esc(s.unidade)             || '—') + '</td>' +
+        '<td>' + (esc(s.cargo)               || '—') + '</td>' +
+        '<td>' + (esc(s.dataAdmissao)        || '—') + '</td>' +
+        '<td>' + (esc(s.criado)              || '—') + '</td>' +
         '<td>' + badge + '</td>' +
         '<td id="acao-sol-' + s.id + '">' + acao + '</td>' +
         '</tr>';
@@ -325,7 +314,7 @@
           cell.innerHTML =
             '<button class="btn-copiar-link" onclick="copiarLinkSolicitacao(this, \'' + res.url + '\')">' +
             'Copiar link</button>' +
-            '<span class="link-inline">' + res.url + '</span>';
+            '<span class="link-inline">' + esc(res.url) + '</span>';
         }
         // Atualiza badge na linha
         carregarSolicitacoes();
@@ -343,6 +332,18 @@
       btn.textContent = 'Copiado!';
       setTimeout(function() { btn.textContent = orig; }, 2000);
     });
+  }
+
+  function preencherSelectUnidades(unidades) {
+    var sel = document.getElementById('selectUnidade');
+    sel.innerHTML = '<option value="">— Selecione —</option>';
+    unidades.forEach(function(u) {
+      var opt = document.createElement('option');
+      opt.value = u.razaoSocial + '|' + u.nome;
+      opt.textContent = u.nome;
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
   }
 
   // ── Token avulso ───────────────────────────────────────────────────────────
@@ -424,38 +425,90 @@
   }
 
   function renderizarTabela(tokens) {
-    if (!tokens || tokens.length === 0) {
+    _tokensCache = tokens ? tokens.slice().reverse() : [];
+
+    var filtroBar = document.getElementById('filtroTokensBar');
+    if (_tokensCache.length === 0) {
+      filtroBar.style.display = 'none';
       document.getElementById('tabelaContainer').innerHTML =
         '<div class="vazio">Nenhum token gerado ainda.</div>';
       return;
     }
 
-    tokens = tokens.slice().reverse();
+    // Popula dropdown de unidades com as que realmente existem na lista
+    var unidades = [];
+    _tokensCache.forEach(function(t) { if (t.unidade && unidades.indexOf(t.unidade) === -1) unidades.push(t.unidade); });
+    unidades.sort();
+    var sel = document.getElementById('filtroUnidadeSelect');
+    var valorAtual = sel.value;
+    sel.innerHTML = '<option value="">Todas as unidades</option>';
+    unidades.forEach(function(u) {
+      var opt = document.createElement('option');
+      opt.value = u;
+      opt.textContent = u;
+      if (u === valorAtual) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    filtroBar.style.display = 'flex';
+    aplicarFiltroTokens();
+  }
+
+  function aplicarFiltroTokens() {
+    var termo = (document.getElementById('filtroCandidatoInput').value || '').toLowerCase().trim();
+    var unidade = document.getElementById('filtroUnidadeSelect').value;
+
+    var lista = _tokensCache.filter(function(t) {
+      var nomeOk = !termo || (t.candidato || '').toLowerCase().indexOf(termo) !== -1;
+      var unidadeOk = !unidade || t.unidade === unidade;
+      return nomeOk && unidadeOk;
+    });
+
+    if (lista.length === 0) {
+      document.getElementById('tabelaContainer').innerHTML =
+        '<div class="vazio">Nenhum resultado para o filtro aplicado.</div>';
+      return;
+    }
 
     var html = '<table><thead><tr>' +
-      '<th>Candidato</th><th>Unidade</th><th>Criado em</th><th>Status</th><th>Link</th>' +
+      '<th>Candidato</th><th>Unidade</th><th>Criado em</th><th>Status</th><th>Link</th><th></th>' +
       '</tr></thead><tbody>';
 
-    tokens.forEach(function(t) {
+    lista.forEach(function(t) {
       var badge = t.usado
-        ? '<span class="badge badge-usado">Completo em ' + (t.usadoEm || '—') + '</span>'
+        ? '<span class="badge badge-usado">Completo em ' + esc(t.usadoEm || '—') + '</span>'
         : t.incompleto
           ? '<span class="badge badge-incompleto">Incompleto</span>'
           : '<span class="badge badge-pendente">Aguardando</span>';
       var linkBtn = t.link
-        ? '<button class="btn-copiar-link" data-link="' + t.link + '" onclick="copiarLinkTabela(\'' + t.link + '\')">Copiar</button>'
+        ? '<button class="btn-copiar-link" data-link="' + esc(t.link) + '" onclick="copiarLinkTabela(\'' + t.link + '\')">Copiar</button>'
         : '—';
+      var token64 = btoa(t.token);
+      var candidatoJs = JSON.stringify(t.candidato || '').replace(/"/g, '&quot;');
       html += '<tr>' +
-        '<td>' + (t.candidato || '—') + '</td>' +
-        '<td>' + (t.unidade   || '—') + '</td>' +
-        '<td>' + (t.criado    || '—') + '</td>' +
+        '<td>' + (esc(t.candidato) || '—') + '</td>' +
+        '<td>' + (esc(t.unidade)   || '—') + '</td>' +
+        '<td>' + (esc(t.criado)    || '—') + '</td>' +
         '<td>' + badge + '</td>' +
         '<td>' + linkBtn + '</td>' +
+        '<td><button class="btn-excluir" onclick="excluirToken(\'' + token64 + '\',' + candidatoJs + ')">✕ Excluir</button></td>' +
         '</tr>';
     });
 
     html += '</tbody></table>';
     document.getElementById('tabelaContainer').innerHTML = html;
+  }
+
+  function excluirToken(token64, candidato) {
+    if (!confirm('Excluir o registro de "' + candidato + '"?\nEsta ação não pode ser desfeita.')) return;
+    var token = atob(token64);
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.ok) carregarTokens();
+        else alert('Erro: ' + res.erro);
+      })
+      .withFailureHandler(function(err) { alert('Erro: ' + err.message); })
+      .deletarToken(token);
   }
 
   // ── Envios ─────────────────────────────────────────────────────────────────
@@ -489,13 +542,13 @@
         : '<span class="badge badge-completo">Completo ✓</span>';
 
       var pastaBtn = e.pastaUrl
-        ? '<a href="' + e.pastaUrl + '" target="_blank" class="btn-copiar-link">📁 Abrir</a>'
+        ? '<a href="' + esc(e.pastaUrl) + '" target="_blank" class="btn-copiar-link">📁 Abrir</a>'
         : '—';
 
       html += '<tr>' +
-        '<td><strong>' + (e.candidato || '—') + '</strong></td>' +
-        '<td>' + (e.unidade   || '—') + '</td>' +
-        '<td>' + (e.dataEnvio || '—') + '</td>' +
+        '<td><strong>' + (esc(e.candidato) || '—') + '</strong></td>' +
+        '<td>' + (esc(e.unidade)   || '—') + '</td>' +
+        '<td>' + (esc(e.dataEnvio) || '—') + '</td>' +
         '<td>' + badge + '</td>' +
         '<td>' + pastaBtn + '</td>' +
         '<td><button class="btn-copiar-link" onclick="toggleDocs(' + idx + ')">▼ Documentos</button></td>' +
@@ -505,12 +558,12 @@
         '<div class="docs-detalhe">' +
         '<div class="docs-col enviados-col">' +
         '<strong>Enviados (' + e.enviados.length + ')</strong>' +
-        '<ul>' + e.enviados.map(function(d) { return '<li>' + d + '</li>'; }).join('') + '</ul>' +
+        '<ul>' + e.enviados.map(function(d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' +
         '</div>' +
         (pendCount > 0
           ? '<div class="docs-col pendentes-col">' +
             '<strong>Pendentes (' + pendCount + ')</strong>' +
-            '<ul>' + e.pendentes.map(function(d) { return '<li>' + d + '</li>'; }).join('') + '</ul>' +
+            '<ul>' + e.pendentes.map(function(d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' +
             '</div>'
           : '') +
         '</div></td></tr>';
@@ -535,10 +588,7 @@
     carregarEnvios();
   }
 
-  // Carrega tudo ao abrir
-  carregarSolicitacoes();
-  carregarTokens();
-  carregarEnvios();
+  // Carregamento inicial feito após autenticação bem-sucedida
 </script>
 </body>
 </html>

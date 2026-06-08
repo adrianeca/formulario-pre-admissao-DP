@@ -92,35 +92,8 @@
 
     <div class="campo">
       <label for="unidade">Unidade <span class="req">*</span></label>
-      <select id="unidade">
-        <option value="">— Selecione —</option>
-        <option>Bangu</option>
-        <option>Botafogo</option>
-        <option>BRASAS On Demand</option>
-        <option>Cachambi</option>
-        <option>Campo Grande</option>
-        <option>Copacabana</option>
-        <option>Caxias</option>
-        <option>Downtown</option>
-        <option>Freguesia</option>
-        <option>Grajaú</option>
-        <option>Ilha do Governador</option>
-        <option>Ipanema</option>
-        <option>Itaipu</option>
-        <option>Laranjeiras</option>
-        <option>Méier</option>
-        <option>Niterói</option>
-        <option>Nova Iguaçu</option>
-        <option>Novo Leblon</option>
-        <option>Parque Olímpico</option>
-        <option>Pechincha</option>
-        <option>Península</option>
-        <option>Recreio</option>
-        <option>Taquara</option>
-        <option>Tijuca</option>
-        <option>Vila da Penha</option>
-        <option>Vila Olímpia</option>
-        <option>Vila Valqueire</option>
+      <select id="unidade" disabled>
+        <option value="">Carregando...</option>
       </select>
       <span class="msg-erro" id="err-unidade">Selecione a unidade.</span>
     </div>
@@ -177,6 +150,26 @@
 </div>
 
 <script>
+  // ── Carrega unidades do servidor ──────────────────────────────────────────
+  google.script.run
+    .withSuccessHandler(function(unidades) {
+      var sel = document.getElementById('unidade');
+      sel.innerHTML = '<option value="">— Selecione —</option>';
+      unidades.forEach(function(u) {
+        var opt = document.createElement('option');
+        opt.value = u.nome;
+        opt.textContent = u.nome;
+        sel.appendChild(opt);
+      });
+      sel.disabled = false;
+    })
+    .withFailureHandler(function() {
+      var sel = document.getElementById('unidade');
+      sel.innerHTML = '<option value="">— Erro ao carregar —</option>';
+      sel.disabled = false;
+    })
+    .listarUnidades();
+
   // ── Máscara e validação de CPF ────────────────────────────────────────────
   document.getElementById('cpf').addEventListener('input', function() {
     var v = this.value.replace(/\D/g, '').substring(0, 11);

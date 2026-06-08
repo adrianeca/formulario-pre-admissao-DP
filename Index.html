@@ -165,6 +165,9 @@
     .preview-remover:hover { color: #b71c1c; }
     .preview-ver { cursor: pointer; font-size: 16px; flex-shrink: 0; padding: 0 4px; opacity: 0.5; }
     .preview-ver:hover { opacity: 1; }
+    .preview-item.com-alerta { border-color: #ffb74d; background: #fffde7; }
+    .preview-alerta { display: block; font-size: 11px; color: #e65100; margin-top: 3px; }
+    .preview-analisando { display: block; font-size: 11px; color: #aaa; font-style: italic; margin-top: 3px; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.78); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
     .modal-overlay.ativo { display: flex; }
     .modal-caixa { background: #fff; border-radius: 10px; padding: 36px 16px 16px; max-width: 90vw; max-height: 90vh; overflow: auto; position: relative; }
@@ -464,8 +467,8 @@
     { id: 'rg',            rotulo: 'CARTEIRA DE IDENTIDADE',                                  req: true  },
     { id: 'cpfDoc',        rotulo: 'CPF',                                                     req: true  },
     { id: 'titulo',        rotulo: 'TÍTULO DE ELEITOR',                                       req: true  },
-    { id: 'pisPasep',      rotulo: 'PIS / PASEP',                                             req: true,  numId: 'numPisPasep',   numLabel: 'Ou informe o número do PIS/PASEP' },
-    { id: 'reservista',    rotulo: 'CERTIFICADO DE RESERVISTA',                               req: false, numId: 'numReservista', numLabel: 'Ou informe o número do Certificado de Reservista' },
+    { id: 'pisPasep',      rotulo: 'PIS / PASEP',                                             req: true  },
+    { id: 'reservista',    rotulo: 'CERTIFICADO DE RESERVISTA',                               req: false },
     { id: 'escolaridade',  rotulo: 'DECLARAÇÃO DE ESCOLARIDADE',                              req: true  },
     { id: 'casamento',     rotulo: 'CERTIDÃO DE CASAMENTO',                                   req: false },
     { id: 'ctps',          rotulo: 'CARTEIRA DE TRABALHO (foto, dados cadastrais e último contrato)', req: true  },
@@ -562,14 +565,98 @@
   function adicionarArquivos(id, input) {
     if (!input.files || !input.files.length) return;
     if (!filesMap[id]) filesMap[id] = [];
-    var rejeitados = [];
+    var rejeitados = [], novos = [];
     Array.from(input.files).forEach(function(f) {
       if (f.size > 10 * 1024 * 1024) { rejeitados.push(f.name); return; }
       filesMap[id].push(f);
+      novos.push(f);
+      try { f._quality = { analisando: true, avisos: [] }; } catch(e) {}
     });
     input.value = '';
     if (rejeitados.length) alert('Arquivo(s) acima de 10 MB ignorado(s): ' + rejeitados.join(', '));
     renderizarPreviews(id);
+    novos.forEach(function(f) { try { verificarQualidade(id, f); } catch(e) {} });
+  }
+
+  function verificarQualidade(docId, f) {
+    var avisos = [];
+
+    if (f.type === 'application/pdf') {
+      if (f.size < 10 * 1024) avisos.push('⚠ PDF muito pequeno — verifique se está correto');
+      f._quality = { analisando: false, avisos: avisos };
+      renderizarPreviews(docId);
+      return;
+    }
+
+    if (!f.type.startsWith('image/')) {
+      f._quality = { analisando: false, avisos: [] };
+      renderizarPreviews(docId);
+      return;
+    }
+
+    if (f.size < 30 * 1024) avisos.push('⚠ Arquivo muito pequeno — qualidade pode ser baixa');
+
+    var url = URL.createObjectURL(f);
+    var img = new Image();
+    img.onload = function() {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      if (w < 600 || h < 600)
+        avisos.push('⚠ Resolução baixa (' + w + '×' + h + 'px) — documento pode ficar ilegível');
+      try {
+        var canvas = document.createElement('canvas');
+        var scale = Math.min(1, 500 / Math.max(w, h));
+        canvas.width  = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        var score = calcularBorrão(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        if (score < 100) avisos.push('⚠ Imagem parece borrada ou fora de foco');
+      } catch(e) {}
+      URL.revokeObjectURL(url);
+      f._quality = { analisando: false, avisos: avisos };
+      renderizarPreviews(docId);
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(url);
+      f._quality = { analisando: false, avisos: [] };
+      renderizarPreviews(docId);
+    };
+    img.src = url;
+  }
+
+  function calcularBorrão(imageData) {
+    var data = imageData.data, w = imageData.width, h = imageData.height;
+
+    // Converte para escala de cinza
+    var gray = new Float32Array(w * h);
+    for (var k = 0; k < w * h; k++) {
+      gray[k] = 0.299 * data[k*4] + 0.587 * data[k*4+1] + 0.114 * data[k*4+2];
+    }
+
+    // Box blur 3×3 para eliminar artefatos de compressão JPEG
+    var blurred = new Float32Array(w * h);
+    for (var y = 1; y < h - 1; y++) {
+      for (var x = 1; x < w - 1; x++) {
+        blurred[y*w+x] = (
+          gray[(y-1)*w+(x-1)] + gray[(y-1)*w+x] + gray[(y-1)*w+(x+1)] +
+          gray[y*w    +(x-1)] + gray[y*w    +x]  + gray[y*w    +(x+1)] +
+          gray[(y+1)*w+(x-1)] + gray[(y+1)*w+x]  + gray[(y+1)*w+(x+1)]
+        ) / 9;
+      }
+    }
+
+    // Variância do Laplaciano (método padrão de detecção de borrão)
+    var n = 0, sum = 0, sum2 = 0;
+    for (var y = 1; y < h - 1; y++) {
+      for (var x = 1; x < w - 1; x++) {
+        var lap = blurred[(y-1)*w+x] + blurred[(y+1)*w+x] +
+                  blurred[y*w+(x-1)] + blurred[y*w+(x+1)] - 4*blurred[y*w+x];
+        n++; sum += lap; sum2 += lap * lap;
+      }
+    }
+    if (n === 0) return 0;
+    var mean = sum / n;
+    return (sum2 / n) - (mean * mean); // variância = E[X²] - E[X]²
   }
 
   function removerArquivo(docId, idx) {
@@ -591,16 +678,29 @@
     container.innerHTML = '';
     files.forEach(function(f, idx) {
       var item = document.createElement('div');
-      item.className = 'preview-item';
+      var q = f._quality;
+      var temAlerta = q && !q.analisando && q.avisos.length > 0;
+      item.className = 'preview-item' + (temAlerta ? ' com-alerta' : '');
       var isImg = f.type.startsWith('image/');
       var mediaHtml = isImg
         ? '<img class="preview-thumb" src="' + URL.createObjectURL(f) + '" alt="">'
         : '<div class="preview-pdf">📄</div>';
+      var qualidadeHtml = '';
+      if (q) {
+        if (q.analisando) {
+          qualidadeHtml = '<span class="preview-analisando">🔍 Verificando legibilidade...</span>';
+        } else if (q.avisos.length > 0) {
+          qualidadeHtml = q.avisos.map(function(a) {
+            return '<span class="preview-alerta">' + a + '</span>';
+          }).join('');
+        }
+      }
       item.innerHTML =
         mediaHtml +
         '<div class="preview-info">' +
           '<span class="preview-nome">' + f.name + '</span>' +
           '<span class="preview-tam">' + formatarTamanho(f.size) + '</span>' +
+          qualidadeHtml +
         '</div>' +
         '<span class="preview-ver" onclick="visualizarArquivo(\'' + id + '\',' + idx + ')" title="Visualizar">👁</span>' +
         '<span class="preview-remover" onclick="removerArquivo(\'' + id + '\',' + idx + ')">×</span>';
@@ -854,10 +954,14 @@
         var msg = document.querySelector('.sucesso-msg');
         if (res.pendentes && res.pendentes.length > 0) {
           document.querySelector('.sucesso-titulo').textContent = 'Recebido!';
+          var instrucaoRetorno = res.emailEnviado
+            ? 'Enviamos um e-mail para <strong>' + document.getElementById('email').value.trim() + '</strong> com o link para completar o envio.'
+            : 'Para enviar os documentos restantes, acesse o link abaixo:<br><br>' +
+              '<a href="' + (res.linkRetorno || '') + '" style="word-break:break-all;color:#1a237e;">' + (res.linkRetorno || '') + '</a>';
           msg.innerHTML = 'Seus documentos foram recebidos.<br><br>' +
             '<strong>Ainda pendentes:</strong><br>' +
             res.pendentes.map(function(p) { return '• ' + p; }).join('<br>') +
-            '<br><br>Você receberá um e-mail com o link para enviar os documentos restantes.';
+            '<br><br>' + instrucaoRetorno;
         } else if (_STATUS === 'incompleto') {
           document.querySelector('.sucesso-titulo').textContent = 'Processo completo!';
           msg.innerHTML = 'Todos os documentos foram recebidos com sucesso.<br>Em breve entraremos em contato.';
@@ -899,8 +1003,6 @@
         bairroOrigem:    vtSim ? document.getElementById('bairroOrigem').value.trim() : '',
         modalTransporte: vtSim ? document.getElementById('modalTransporte').value.trim() : '',
         qtdConducoes:    vtSim ? document.getElementById('qtdConducoes').value.trim() : '',
-        numPisPasep:     (document.getElementById('numPisPasep') || {}).value || '',
-        numReservista:   (document.getElementById('numReservista') || {}).value || '',
         documentos:      documentos
       };
       google.script.run

@@ -64,6 +64,14 @@ const EMAILS_DIRETORES = {
   'Vila Valqueire':     ['dirvq@brasas.com']
 };
 
+// ── Unidades ──────────────────────────────────────────────────────────────────
+
+function listarUnidades() {
+  return Object.keys(UNIDADES).sort().map(function(nome) {
+    return { nome: nome, razaoSocial: UNIDADES[nome] };
+  });
+}
+
 // ── Controle de acesso ao painel DP (via sessão do Hub) ──────────────────────
 
 function validarSessaoHub(token) {
@@ -102,6 +110,20 @@ function validarSessaoHub(token) {
     Logger.log(e.toString());
     return { autorizado: false, motivo: 'Erro ao validar sessão.' };
   }
+}
+
+// ── Atualiza a lista de validação de unidades na planilha de tokens ──────────
+
+function atualizarValidacaoUnidades() {
+  var sh     = getTokenSheet();
+  var opcoes = Object.keys(UNIDADES).sort();
+  sh.getRange('C2:C1000').setDataValidation(
+    SpreadsheetApp.newDataValidation()
+      .requireValueInList(opcoes, true)
+      .setAllowInvalid(false)
+      .build()
+  );
+  Logger.log('✅ Validação atualizada com ' + opcoes.length + ' unidades: ' + opcoes.join(', '));
 }
 
 // ── Setup (executar UMA VEZ após implantar o Web App) ─────────────────────────
@@ -218,15 +240,21 @@ function processarFormulario(dados) {
     dados.pastaUrl = novaPasta.getUrl();
     var pendentes = salvarEnvio(dados);
 
+    var emailEnviado = false;
     if (pendentes.length === 0) {
       marcarTokenUsado(dados.token);
       if (tokenCheck.solicitacaoId) atualizarStatusSolicitacao(tokenCheck.solicitacaoId, 'Concluído');
     } else {
       if (tokenCheck.solicitacaoId) atualizarStatusSolicitacao(tokenCheck.solicitacaoId, 'Em andamento');
-      try { enviarEmailPendencias(dados, pendentes); } catch(emailErr) { Logger.log('Email: ' + emailErr); }
+      try {
+        enviarEmailPendencias(dados, pendentes);
+        emailEnviado = true;
+      } catch(emailErr) {
+        Logger.log('Erro ao enviar email de pendências: ' + emailErr);
+      }
     }
 
-    return { sucesso: true, pendentes: pendentes };
+    return { sucesso: true, pendentes: pendentes, emailEnviado: emailEnviado, linkRetorno: PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') + '?token=' + dados.token };
   } catch (e) {
     Logger.log(e.toString());
     return { sucesso: false, erro: e.message };
@@ -269,9 +297,14 @@ function completarDocumentos(token, documentos) {
 
     var novosEnviados  = (documentos || []).filter(function(d) { return !!d.base64; }).map(function(d) { return d.rotulo; });
     var novosPendentes = (documentos || []).filter(function(d) { return !d.base64; }).map(function(d) { return d.rotulo; });
+
+    if (novosEnviados.length === 0 && novosPendentes.length === 0) {
+      return { sucesso: false, erro: 'Nenhum arquivo foi recebido. Selecione os documentos e tente novamente.' };
+    }
+
     atualizarEnvio(token, novosEnviados, novosPendentes);
 
-    if (novosPendentes.length === 0) {
+    if (novosEnviados.length > 0 && novosPendentes.length === 0) {
       marcarTokenUsado(token);
       if (td.solicitacaoId) atualizarStatusSolicitacao(td.solicitacaoId, 'Concluído');
     }
@@ -336,6 +369,8 @@ function criarToken(candidato, unidadeId, unidadeNome) {
 
   var sh  = getTokenSheet();
   var row = sh.getLastRow() + 1;
+  if (row > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), 200);
+  sh.getRange(row, 3).clearDataValidations();
   sh.getRange(row, 1, 1, 3).setValues([[token, candidato, unidadeNome]]);
   sh.getRange(row, 7).setValue(new Date());
 
@@ -369,6 +404,8 @@ function criarTokenParaSolicitacao(solicitacaoId) {
 
   var sh  = getTokenSheet();
   var row = sh.getLastRow() + 1;
+  if (row > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), 200);
+  sh.getRange(row, 3).clearDataValidations();
   sh.getRange(row, 1, 1, 3).setValues([[token, candidato, unidadeNome]]);
   sh.getRange(row, 7).setValue(new Date());
   sh.getRange(row, 8).setValue(solicitacaoId);
@@ -404,6 +441,18 @@ function listarTokens() {
   }
 
   return tokens;
+}
+
+function deletarToken(token) {
+  var sh   = getTokenSheet();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(token).trim()) {
+      sh.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { ok: false, erro: 'Registro não encontrado.' };
 }
 
 function validarToken(token) {
@@ -602,15 +651,6 @@ function salvarEnvio(dados) {
     }
   });
 
-  if (dados.numPisPasep) {
-    pendentes = pendentes.filter(function(p) { return p !== 'PIS / PASEP'; });
-    if (enviados.indexOf('PIS / PASEP') === -1) enviados.push('PIS / PASEP (nº)');
-  }
-  if (dados.numReservista) {
-    pendentes = pendentes.filter(function(p) { return p !== 'CERTIFICADO DE RESERVISTA'; });
-    if (enviados.indexOf('CERTIFICADO DE RESERVISTA') === -1) enviados.push('CERTIFICADO DE RESERVISTA (nº)');
-  }
-
   getEnviosSheet().appendRow([
     dados.token        || '',
     dados.nomeCompleto || '',
@@ -782,9 +822,6 @@ function criarPdf(dados, pasta, solDados) {
   }
 
   _sec(b, '5. DOCUMENTOS');
-  if (dados.numPisPasep)   _fld(b, 'Nº PIS/PASEP', dados.numPisPasep);
-  if (dados.numReservista) _fld(b, 'Nº Certificado de Reservista', dados.numReservista);
-
   var enviados = (dados.documentos || []).filter(function(d) { return !!d.base64; });
   if (enviados.length > 0) {
     b.appendParagraph('Arquivos enviados:').editAsText().setBold(true).setFontSize(11);
