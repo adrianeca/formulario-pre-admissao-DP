@@ -202,12 +202,48 @@ Unidades sem e-mail configurado no momento: Editora, EC, Grajaú, Métodos (agua
 
 ---
 
+## Geração de contrato (modal no painel DP)
+
+O DP pode gerar o contrato de trabalho diretamente do painel, abrindo o modal em "Formulários Recebidos":
+
+- **Campos editáveis**: Cargo, Jornada de trabalho, CTPS, Salário (número e por extenso)
+- Cargo e Jornada são pré-preenchidos com os valores da solicitação do diretor (se houver), mas o DP pode editar antes de gerar
+- O contrato é criado na pasta do candidato no Drive (cópia do template preenchida com os dados)
+- Se a Google eSignature API não estiver disponível no plano, o botão exibe: _"Assinatura digital não configurada — o contrato está no Drive aguardando envio manual."_ com link direto ao arquivo
+
+### Função no servidor
+`gerarEEnviarContrato(token, ctps, salario, salarioExtenso, cargo, jornada)` — os parâmetros `cargo` e `jornada` sobrepõem os valores vindos da solicitação do diretor (`cargo || dadosBase.cargo`).
+
+---
+
+## Fluxo de complemento de documentos (`?token=...` com status INCOMPLETO)
+
+Quando o candidato enviou documentos parciais na primeira vez, o link original (`?token=TOKEN`) continua válido. Ao acessá-lo novamente:
+
+1. `doGet` detecta `td.incompleto = true` e renderiza `Index.html` em modo complemento
+2. `_STATUS = 'incompleto'`, `_PENDENTES` = lista de rótulos dos docs ainda faltantes
+3. Somente os documentos pendentes são exibidos para upload
+4. Ao enviar, `completarDocumentos(token, docs)` é chamado no servidor:
+   - Adiciona arquivos enviados na pasta do Drive já existente
+   - Docs opcionais sem arquivo são **ignorados** (não marcados como pendência)
+   - Se ainda restarem pendentes obrigatórios: token permanece INCOMPLETO, link de retorno é exibido
+   - Se tudo completo: token é marcado USADO
+
+### Bugs corrigidos neste fluxo
+- `var filesMap = {}` estava declarado **após** o `forEach` de renderização — ficava `undefined` por hoisting e quebrava o submit. Movido para antes do `forEach`.
+- `document.querySelector('.header h1')` retornava `null` no HTML implantado → adicionadas null-checks em todos os `.textContent` do bloco incompleto
+- Token chegava como `undefined` no servidor quando o HTML antigo ainda estava implantado → adicionado guard `if (!_TOKEN || _TOKEN === 'undefined')`
+- `completarDocumentos` não retornava `linkRetorno` → corrigido, agora retorna `webappUrl + '?token=' + token`
+
+---
+
 ## Pendências
 
 - [ ] **Aplicar alteração no Hub** — modificar `doGet` do Hub BRASAS Analytics para suportar `?next=URL` e redirecionar com o token de sessão após autenticação. Código fornecido, falta aplicar e reimplantar.
 - [ ] **Reimplantar ambos os projetos** no GAS após as alterações
 - [ ] **E-mails faltantes de diretores** — Editora, EC, Grajaú, Métodos (aguardando fornecimento)
 - [ ] **Notificação ao diretor e ao DP por e-mail** quando formulário for recebido (estrutura pronta em `EMAILS_DIRETORES`, falta implementar o envio)
+- [ ] **CNPJ e endereço faltantes** em `UNIDADES_DADOS` no `Code.gs`: BRASAS On Demand e Vila Olímpia (aguardando fornecimento)
 
 ---
 
@@ -218,6 +254,9 @@ Unidades sem e-mail configurado no momento: Editora, EC, Grajaú, Métodos (agua
 - PIS/PASEP e Certificado de Reservista: **removida opção de inserir só o número** — apenas upload de arquivo aceito
 - Painel DP → Links gerados: adicionados **filtro por unidade** e **busca por nome** acima da tabela (filtragem client-side)
 - Avisos de qualidade de documento (borrão, resolução) são **informativos**, não bloqueantes — candidato pode enviar mesmo com aviso
+- Modal de contrato: botão renomeado de "Gerar e enviar para assinatura" → **"📄 Gerar Contrato"** (assinatura é assíncrona / pode não estar disponível no plano)
+- Falha na eSignature API exibe mensagem informativa com link para o arquivo no Drive — **não interrompe o fluxo**
+- Docs opcionais sem arquivo no modo complemento são **silenciosamente ignorados** — apenas obrigatórios geram pendência
 
 ---
 

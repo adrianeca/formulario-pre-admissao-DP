@@ -484,6 +484,9 @@
     ? DOCS.filter(function(d) { return _PENDENTES.indexOf(d.rotulo) !== -1; })
     : DOCS;
 
+  // ── Mapa de arquivos selecionados (deve ser inicializado antes do forEach) ──
+  var filesMap = {};
+
   // ── Gerar UI de upload ────────────────────────────────────────────────────
   var lista = document.getElementById('listaDocumentos');
   DOCS_RENDER.forEach(function(doc) {
@@ -540,16 +543,20 @@
     }
   }
 
+  console.log('[init] STATUS=' + _STATUS + ' TOKEN=' + _TOKEN + ' PENDENTES=' + JSON.stringify(_PENDENTES) + ' DOCS_RENDER=' + DOCS_RENDER.length);
+
   // ── Modo incompleto: ajusta UI ────────────────────────────────────────────
   if (_STATUS === 'incompleto') {
     var cards = document.querySelectorAll('.card');
     for (var ci = 0; ci < cards.length - 1; ci++) { cards[ci].style.display = 'none'; }
     var avisoEl = document.querySelector('.aviso');
     if (avisoEl) avisoEl.style.display = 'none';
-    document.querySelector('.header h1').textContent = 'Complemento de Documentos';
-    document.querySelector('.header p').textContent  =
-      'Olá, ' + _CANDIDATO + '! Envie os documentos pendentes abaixo.';
-    document.querySelector('.btn-enviar').textContent = 'Enviar Documentos';
+    var _h1 = document.querySelector('.header h1') || document.querySelector('h1');
+    if (_h1) _h1.textContent = 'Complemento de Documentos';
+    var _hp = document.querySelector('.header p');
+    if (_hp) _hp.textContent = 'Olá, ' + _CANDIDATO + '! Envie os documentos pendentes abaixo.';
+    var _btnLabel = document.querySelector('.btn-enviar');
+    if (_btnLabel) _btnLabel.textContent = 'Enviar Documentos';
   }
 
   // ── Pré-preencher e travar unidade se veio do token ──────────────────────
@@ -559,8 +566,6 @@
     _sel.disabled = true;
     _sel.style.cssText += '; background:#f0f0f0; color:#555; cursor:default; pointer-events:none;';
   }
-
-  var filesMap = {};
 
   function adicionarArquivos(id, input) {
     if (!input.files || !input.files.length) return;
@@ -923,9 +928,11 @@
             });
           }
         }
-      } else {
+      } else if (doc.req || _STATUS !== 'incompleto') {
+        // Pendente: obrigatório sem arquivo (sempre), ou modo normal (inclui opcionais)
         resultado.push({ id: doc.id, rotulo: doc.rotulo, nome: '', tipo: '', base64: null });
       }
+      // Opcional sem arquivo em modo incompleto → ignora (verdadeiramente opcional)
     }
     return resultado;
   }
@@ -949,6 +956,7 @@
     var documentos = await coletarDocumentos();
 
     function aoSucesso(res) {
+      console.log('[aoSucesso]', JSON.stringify(res));
       document.getElementById('overlayLoading').classList.remove('ativo');
       if (res.sucesso) {
         var msg = document.querySelector('.sucesso-msg');
@@ -980,6 +988,14 @@
     }
 
     if (_STATUS === 'incompleto') {
+      if (!_TOKEN || _TOKEN === 'undefined') {
+        document.getElementById('overlayLoading').classList.remove('ativo');
+        document.getElementById('btnEnviar').disabled = false;
+        mostrarBannerErro('Erro: token do formulário inválido. Acesse novamente pelo link enviado pelo DP.');
+        return;
+      }
+      var docsComBase64 = (documentos || []).filter(function(d) { return !!d.base64; });
+      console.log('[submit incompleto] docs total=' + (documentos || []).length + ' com arquivo=' + docsComBase64.length + ' token=' + _TOKEN);
       google.script.run
         .withSuccessHandler(aoSucesso)
         .withFailureHandler(aoErro)

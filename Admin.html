@@ -242,7 +242,17 @@
     <h3>📄 Gerar Contrato de Trabalho</h3>
     <div id="modalContratoInfo"></div>
     <hr class="modal-separador">
-    <div class="form-group">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="modalCargo">Cargo <span style="color:#c62828">*</span></label>
+        <input type="text" id="modalCargo" placeholder="Ex: Instrutor de Inglês">
+      </div>
+      <div class="form-group">
+        <label for="modalJornada">Jornada de trabalho <span style="color:#c62828">*</span></label>
+        <input type="text" id="modalJornada" placeholder="Ex: 20h/semana">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
       <label for="modalCtps">Número da CTPS <span style="color:#c62828">*</span></label>
       <input type="text" id="modalCtps" placeholder="Ex: 12345678">
     </div>
@@ -257,7 +267,7 @@
       </div>
     </div>
     <div class="modal-acoes">
-      <button class="btn-gerar" id="btnConfirmarContrato" onclick="confirmarGerarContrato()">Gerar e enviar para assinatura</button>
+      <button class="btn-gerar" id="btnConfirmarContrato" onclick="confirmarGerarContrato()">📄 Gerar Contrato</button>
       <button class="btn-cancelar" onclick="fecharModalContrato()">Cancelar</button>
     </div>
     <div class="modal-feedback" id="modalContratoFeedback"></div>
@@ -664,12 +674,14 @@
 
   function abrirModalContrato(token) {
     _modalContratoToken = token;
+    document.getElementById('modalCargo').value = '';
+    document.getElementById('modalJornada').value = '';
     document.getElementById('modalCtps').value = '';
     document.getElementById('modalSalario').value = '';
     document.getElementById('modalSalarioExtenso').value = '';
     document.getElementById('modalContratoFeedback').style.display = 'none';
     document.getElementById('btnConfirmarContrato').disabled = false;
-    document.getElementById('btnConfirmarContrato').textContent = 'Gerar e enviar para assinatura';
+    document.getElementById('btnConfirmarContrato').textContent = '📄 Gerar Contrato';
 
     document.getElementById('modalContratoInfo').innerHTML = '<div class="loading">Carregando dados...</div>';
     document.getElementById('modalContrato').classList.add('ativo');
@@ -685,10 +697,10 @@
           '<div class="modal-info-row"><span class="modal-info-label">Candidato:</span><span class="modal-info-valor"><strong>' + esc(dados.candidato) + '</strong></span></div>' +
           '<div class="modal-info-row"><span class="modal-info-label">Unidade:</span><span class="modal-info-valor">' + esc(dados.unidade) + '</span></div>' +
           '<div class="modal-info-row"><span class="modal-info-label">Razão Social:</span><span class="modal-info-valor">' + esc(dados.razaoSocial) + '</span></div>' +
-          '<div class="modal-info-row"><span class="modal-info-label">Cargo:</span><span class="modal-info-valor">' + (esc(dados.cargo) || '<em style="color:#aaa">não informado</em>') + '</span></div>' +
-          '<div class="modal-info-row"><span class="modal-info-label">Jornada:</span><span class="modal-info-valor">' + (esc(dados.jornada) || '<em style="color:#aaa">não informada</em>') + '</span></div>' +
           '<div class="modal-info-row"><span class="modal-info-label">Data Admissão:</span><span class="modal-info-valor">' + (esc(dados.dataAdmissao) || '<em style="color:#aaa">não informada</em>') + '</span></div>';
         document.getElementById('modalContratoInfo').innerHTML = html;
+        if (dados.cargo)   document.getElementById('modalCargo').value   = dados.cargo;
+        if (dados.jornada) document.getElementById('modalJornada').value = dados.jornada;
       })
       .withFailureHandler(function(err) {
         document.getElementById('modalContratoInfo').innerHTML =
@@ -703,12 +715,14 @@
   }
 
   function confirmarGerarContrato() {
+    var cargo           = document.getElementById('modalCargo').value.trim();
+    var jornada         = document.getElementById('modalJornada').value.trim();
     var ctps            = document.getElementById('modalCtps').value.trim();
     var salario         = document.getElementById('modalSalario').value.trim();
     var salarioExtenso  = document.getElementById('modalSalarioExtenso').value.trim();
 
-    if (!ctps || !salario || !salarioExtenso) {
-      mostrarFeedbackModal('erro', 'Preencha todos os campos obrigatórios (CTPS, Salário e Salário por extenso).');
+    if (!cargo || !jornada || !ctps || !salario || !salarioExtenso) {
+      mostrarFeedbackModal('erro', 'Preencha todos os campos obrigatórios (Cargo, Jornada, CTPS, Salário e Salário por extenso).');
       return;
     }
 
@@ -720,11 +734,14 @@
     google.script.run
       .withSuccessHandler(function(res) {
         btn.disabled = false;
-        btn.textContent = 'Gerar e enviar para assinatura';
+        btn.textContent = '📄 Gerar Contrato';
         if (res.sucesso) {
-          mostrarFeedbackModal('sucesso', 'Contrato gerado e enviado para assinatura! ' +
-            (res.requestId ? 'Pedido de assinatura criado com sucesso.' : 'Atenção: API de assinatura não respondeu — verifique o contrato no Drive e envie manualmente.') +
-            ' <a href="' + esc(res.contratoUrl || '') + '" target="_blank" style="color:#1b5e20">Abrir contrato</a>');
+          mostrarFeedbackModal('sucesso',
+            '✅ Contrato gerado com sucesso! ' +
+            (res.requestId
+              ? 'Pedido de assinatura digital enviado ao candidato.'
+              : 'Assinatura digital não configurada — o contrato está no Drive aguardando envio manual.') +
+            ' &nbsp;<a href="' + esc(res.contratoUrl || '') + '" target="_blank" style="color:#1b5e20;font-weight:600">📄 Abrir contrato</a>');
           carregarContratos();
         } else {
           mostrarFeedbackModal('erro', 'Erro: ' + esc(res.erro || 'erro desconhecido.'));
@@ -732,10 +749,10 @@
       })
       .withFailureHandler(function(err) {
         btn.disabled = false;
-        btn.textContent = 'Gerar e enviar para assinatura';
+        btn.textContent = '📄 Gerar Contrato';
         mostrarFeedbackModal('erro', 'Falha na comunicação: ' + esc(err.message));
       })
-      .gerarEEnviarContrato(_modalContratoToken, ctps, salario, salarioExtenso);
+      .gerarEEnviarContrato(_modalContratoToken, ctps, salario, salarioExtenso, cargo, jornada);
   }
 
   function mostrarFeedbackModal(tipo, html) {
