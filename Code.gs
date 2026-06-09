@@ -2,6 +2,10 @@ const PASTA_PAI_ID      = '1IuU9YLh4kiXg1p-xgNiZruUL9ddnD345';
 const SHEET_USUARIOS_ID = '1eZPbzhzjhjHoPwMhAW5YvOZgYiAvlTYc07dRan6Lyoc';
 const HUB_URL           = 'https://script.google.com/a/macros/brasas.com/s/AKfycbyF7BArYMYFtcQY7_4RTGGPw89yNohAjR7eGptItP-EsnWhNfiZR2ISRaHdAkwlLSlr/exec';
 
+// Preencher após criar os templates de contrato no Google Drive (ver instruções no CLAUDE.md):
+const CONTRATO_TEMPLATE_DOCENTE_ID        = 'ID_DO_GOOGLE_DOC_DOCENTE';
+const CONTRATO_TEMPLATE_ADMINISTRATIVO_ID = 'ID_DO_GOOGLE_DOC_ADMINISTRATIVO';
+
 const UNIDADES = {
   'Bangu':              'BG Assessoria Linguística Ltda',
   'Botafogo':           'Kansas Assessoria Linguística Ltda',
@@ -62,6 +66,40 @@ const EMAILS_DIRETORES = {
   'Vila da Penha':      ['dirvp@brasas.com'],
   'Vila Olímpia':       ['dirvo@brasas.com'],
   'Vila Valqueire':     ['dirvq@brasas.com']
+};
+
+// CNPJs e endereços por unidade — preencher com os dados reais antes de gerar contratos
+const UNIDADES_DADOS = {
+  'Bangu':              { cnpj: '', endereco: '' },
+  'Botafogo':           { cnpj: '', endereco: '' },
+  'BRASAS On Demand':   { cnpj: '', endereco: '' },
+  'Cachambi':           { cnpj: '', endereco: '' },
+  'Campo Grande':       { cnpj: '', endereco: '' },
+  'Copacabana':         { cnpj: '', endereco: '' },
+  'Caxias':             { cnpj: '', endereco: '' },
+  'Downtown':           { cnpj: '', endereco: '' },
+  'Editora':            { cnpj: '', endereco: '' },
+  'EC':                 { cnpj: '23.875.012/0001-65', endereco: 'Coronel Pedro Correia, 1427, Jacarepaguá, Rio de Janeiro - RJ, 22775-090' },
+  'Freguesia':          { cnpj: '', endereco: '' },
+  'Grajaú':             { cnpj: '', endereco: '' },
+  'Ilha do Governador': { cnpj: '', endereco: '' },
+  'Ipanema':            { cnpj: '', endereco: '' },
+  'Itaipu':             { cnpj: '', endereco: '' },
+  'Laranjeiras':        { cnpj: '', endereco: '' },
+  'Méier':              { cnpj: '', endereco: '' },
+  'Métodos':            { cnpj: '', endereco: '' },
+  'Nova Iguaçu':        { cnpj: '', endereco: '' },
+  'Niterói':            { cnpj: '', endereco: '' },
+  'Novo Leblon':        { cnpj: '', endereco: '' },
+  'Parque Olímpico':    { cnpj: '', endereco: '' },
+  'Pechincha':          { cnpj: '', endereco: '' },
+  'Península':          { cnpj: '', endereco: '' },
+  'Recreio':            { cnpj: '', endereco: '' },
+  'Taquara':            { cnpj: '', endereco: '' },
+  'Tijuca':             { cnpj: '', endereco: '' },
+  'Vila da Penha':      { cnpj: '', endereco: '' },
+  'Vila Olímpia':       { cnpj: '', endereco: '' },
+  'Vila Valqueire':     { cnpj: '', endereco: '' }
 };
 
 // ── Unidades ──────────────────────────────────────────────────────────────────
@@ -141,6 +179,12 @@ function inicializar() {
   sh.getRange('D2').setFormula(
     '=ARRAYFORMULA(SE(A2:A<>"";"' + url + '?token="&A2:A;""))'
   );
+
+  // Registra trigger horário para verificar assinaturas (remove duplicatas antes)
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'verificarStatusAssinaturas') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('verificarStatusAssinaturas').timeBased().everyHours(1).create();
 
   Logger.log('✅ Configuração concluída!');
   Logger.log('📊 Planilha de tokens: ' + sh.getParent().getUrl());
@@ -639,6 +683,25 @@ function getEnviosSheet() {
   return sh;
 }
 
+function getAssinaturasSheet() {
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_TOKENS_ID');
+  if (!id) throw new Error('Planilha não encontrada. Execute inicializar() primeiro.');
+  var ss = SpreadsheetApp.openById(id);
+  var sh = ss.getSheetByName('Assinaturas');
+  if (!sh) {
+    sh = ss.insertSheet('Assinaturas');
+    sh.getRange(1, 1, 1, 9).setValues([[
+      'Token', 'Candidato', 'Email', 'Unidade', 'ID Pedido', 'ID Contrato', 'Status', 'Enviado em', 'Assinado em'
+    ]]);
+    sh.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sh.setColumnWidth(1, 120).setColumnWidth(2, 200).setColumnWidth(3, 200)
+      .setColumnWidth(4, 150).setColumnWidth(5, 220).setColumnWidth(6, 220)
+      .setColumnWidth(7, 120).setColumnWidth(8, 150).setColumnWidth(9, 150);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
 function salvarEnvio(dados) {
   var enviados  = [];
   var pendentes = [];
@@ -768,6 +831,283 @@ function renderErroPagina(mensagem) {
     '<body><div class="card"><div class="icone">⚠️</div>' +
     '<h2>Acesso Inválido</h2><p>' + mensagem + '</p></div></body></html>';
   return HtmlService.createHtmlOutput(html).setTitle('BRASAS – Acesso Inválido');
+}
+
+// ── Contratos e Assinaturas ───────────────────────────────────────────────────
+
+function _isDocente(cargo) {
+  return /instrutor|professor|teacher/i.test(cargo || '');
+}
+
+function _somarDias(dataStr, dias) {
+  var partes = String(dataStr || '').split('/');
+  if (partes.length !== 3) return dataStr;
+  var d = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+  d.setDate(d.getDate() + dias);
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+}
+
+function getTokenDados(token) {
+  var sh   = getTokenSheet();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(token).trim()) {
+      return {
+        token:         token,
+        candidato:     String(data[i][1] || ''),
+        unidadeNome:   String(data[i][2] || ''),
+        solicitacaoId: String(data[i][7] || '')
+      };
+    }
+  }
+  return null;
+}
+
+function getDadosParaContrato(token) {
+  var tokenRec = getTokenDados(token);
+  if (!tokenRec) return { erro: 'Token não encontrado.' };
+
+  var enviosSh   = getEnviosSheet();
+  var enviosData = enviosSh.getDataRange().getValues();
+  var envio      = null;
+  for (var i = 1; i < enviosData.length; i++) {
+    if (String(enviosData[i][0]).trim() === String(token).trim()) {
+      envio = { email: String(enviosData[i][3] || ''), pastaUrl: String(enviosData[i][7] || '') };
+      break;
+    }
+  }
+
+  var solDados = {};
+  if (tokenRec.solicitacaoId) {
+    try { solDados = getSolicitacaoDados(tokenRec.solicitacaoId); } catch(e) {}
+  }
+
+  var unidade   = tokenRec.unidadeNome;
+  var dadosUnid = UNIDADES_DADOS[unidade] || {};
+
+  return {
+    token:        token,
+    candidato:    tokenRec.candidato,
+    email:        envio ? envio.email    : '',
+    pastaUrl:     envio ? envio.pastaUrl : '',
+    unidade:      unidade,
+    razaoSocial:  UNIDADES[unidade] || unidade,
+    cnpj:         dadosUnid.cnpj     || '',
+    endereco:     dadosUnid.endereco || '',
+    cargo:        solDados.cargo        || '',
+    jornada:      solDados.jornada      || '',
+    dataAdmissao: solDados.dataAdmissao || ''
+  };
+}
+
+function criarContratoParaAssinar(dadosContrato, pasta) {
+  var templateId = _isDocente(dadosContrato.cargo)
+    ? CONTRATO_TEMPLATE_DOCENTE_ID
+    : CONTRATO_TEMPLATE_ADMINISTRATIVO_ID;
+
+  var nome  = 'CONTRATO - ' + String(dadosContrato.candidato || '').toUpperCase();
+  var copia = DriveApp.getFileById(templateId).makeCopy(nome, pasta);
+  var doc   = DocumentApp.openById(copia.getId());
+  var body  = doc.getBody();
+
+  var salarioUnidade  = _isDocente(dadosContrato.cargo) ? 'por hora/aula' : 'por mês';
+  var dataFimExp      = dadosContrato.dataAdmissao ? _somarDias(dadosContrato.dataAdmissao, 45) : '';
+  var dataFimPror     = dadosContrato.dataAdmissao ? _somarDias(dadosContrato.dataAdmissao, 90) : '';
+
+  var vars = {
+    '{{NOME_COMPLETO}}':           dadosContrato.candidato      || '',
+    '{{CTPS}}':                    dadosContrato.ctps           || '',
+    '{{RAZAO_SOCIAL}}':            dadosContrato.razaoSocial    || '',
+    '{{CNPJ}}':                    dadosContrato.cnpj           || '',
+    '{{ENDERECO_EMPRESA}}':        dadosContrato.endereco       || '',
+    '{{CARGO}}':                   dadosContrato.cargo          || '',
+    '{{JORNADA}}':                 dadosContrato.jornada        || '',
+    '{{SALARIO_VALOR}}':           dadosContrato.salario        || '',
+    '{{SALARIO_EXTENSO}}':         dadosContrato.salarioExtenso || '',
+    '{{SALARIO_UNIDADE}}':         salarioUnidade,
+    '{{DATA_ADMISSAO}}':           dadosContrato.dataAdmissao   || '',
+    '{{DATA_FIM_EXPERIENCIA}}':    dataFimExp,
+    '{{DATA_INICIO_PRORROGACAO}}': dataFimExp,
+    '{{DATA_FIM_PRORROGACAO}}':    dataFimPror
+  };
+
+  Object.keys(vars).forEach(function(chave) {
+    body.replaceText(chave.replace(/\{/g, '\\{').replace(/\}/g, '\\}'), vars[chave]);
+  });
+
+  doc.saveAndClose();
+  return copia.getId();
+}
+
+function _chamarApiAssinatura(fileId, email, nome) {
+  // Endpoint em preview — verificar em https://developers.google.com/workspace/esignature
+  var url     = 'https://drivestorage.googleapis.com/v2beta/files/' + fileId + ':createSignatureRequest';
+  var payload = JSON.stringify({ signers: [{ email: email, name: nome }] });
+  try {
+    var resp = UrlFetchApp.fetch(url, {
+      method:      'post',
+      contentType: 'application/json',
+      headers:     { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      payload:     payload,
+      muteHttpExceptions: true
+    });
+    var code = resp.getResponseCode();
+    if (code === 200) {
+      var body = JSON.parse(resp.getContentText() || '{}');
+      return (body.name || '').split('/').pop() || null;
+    }
+    Logger.log('eSignature API error ' + code + ': ' + resp.getContentText());
+    return null;
+  } catch (e) {
+    Logger.log('_chamarApiAssinatura: ' + e.toString());
+    return null;
+  }
+}
+
+function gerarEEnviarContrato(token, ctps, salario, salarioExtenso) {
+  try {
+    var dadosBase = getDadosParaContrato(token);
+    if (dadosBase.erro) return { sucesso: false, erro: dadosBase.erro };
+
+    var pastaMatch = String(dadosBase.pastaUrl || '').match(/folders\/([a-zA-Z0-9_-]+)/);
+    if (!pastaMatch) return { sucesso: false, erro: 'Pasta do candidato não encontrada.' };
+    var pasta = DriveApp.getFolderById(pastaMatch[1]);
+
+    var dadosContrato = {
+      candidato:      dadosBase.candidato,
+      ctps:           ctps,
+      razaoSocial:    dadosBase.razaoSocial,
+      cnpj:           dadosBase.cnpj,
+      endereco:       dadosBase.endereco,
+      cargo:          dadosBase.cargo,
+      jornada:        dadosBase.jornada,
+      salario:        salario,
+      salarioExtenso: salarioExtenso,
+      dataAdmissao:   dadosBase.dataAdmissao
+    };
+
+    var contratoId  = criarContratoParaAssinar(dadosContrato, pasta);
+    var contratoUrl = DriveApp.getFileById(contratoId).getUrl();
+    var requestId   = _chamarApiAssinatura(contratoId, dadosBase.email, dadosBase.candidato);
+
+    var sh = getAssinaturasSheet();
+    sh.appendRow([
+      token,
+      dadosBase.candidato,
+      dadosBase.email,
+      dadosBase.unidade,
+      requestId || '',
+      contratoId,
+      requestId ? 'Pendente' : 'Erro API',
+      new Date(),
+      ''
+    ]);
+
+    return { sucesso: true, contratoUrl: contratoUrl, requestId: requestId };
+  } catch (e) {
+    Logger.log('gerarEEnviarContrato: ' + e.toString());
+    return { sucesso: false, erro: e.message };
+  }
+}
+
+function verificarStatusAssinaturas() {
+  var sh         = getAssinaturasSheet();
+  var data       = sh.getDataRange().getValues();
+  var oauthToken = ScriptApp.getOAuthToken();
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][6] || '').trim() !== 'Pendente') continue;
+    var requestId = String(data[i][4] || '').trim();
+    var token     = String(data[i][0] || '').trim();
+    if (!requestId) continue;
+
+    try {
+      var url  = 'https://drivestorage.googleapis.com/v2beta/signatureRequests/' + requestId;
+      var resp = UrlFetchApp.fetch(url, {
+        method:  'get',
+        headers: { Authorization: 'Bearer ' + oauthToken },
+        muteHttpExceptions: true
+      });
+      if (resp.getResponseCode() !== 200) continue;
+      var body = JSON.parse(resp.getContentText() || '{}');
+
+      if (String(body.state || '').toUpperCase() === 'COMPLETE') {
+        sh.getRange(i + 1, 7).setValue('Assinado');
+        sh.getRange(i + 1, 9).setValue(new Date());
+        marcarTokenUsado(token);
+        MailApp.sendEmail({
+          to:      'dp@brasas.com',
+          subject: 'BRASAS – Contrato assinado: ' + String(data[i][1] || ''),
+          body:    'O contrato de ' + String(data[i][1] || '') + ' (' + String(data[i][3] || '') +
+                   ') foi assinado digitalmente.\n\nID do contrato: ' + String(data[i][5] || '') +
+                   '\n\nEquipe BRASAS DP'
+        });
+      }
+    } catch (e) {
+      Logger.log('verificarStatusAssinaturas[' + requestId + ']: ' + e.toString());
+    }
+  }
+}
+
+function reenviarPedidoAssinatura(token) {
+  try {
+    var sh   = getAssinaturasSheet();
+    var data = sh.getDataRange().getValues();
+    var row  = -1;
+    var rec  = null;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === String(token).trim()) {
+        row = i + 1; rec = data[i]; break;
+      }
+    }
+    if (!rec) return { sucesso: false, erro: 'Registro de assinatura não encontrado.' };
+
+    var fileId = String(rec[5] || '').trim();
+    var email  = String(rec[2] || '').trim();
+    var nome   = String(rec[1] || '').trim();
+    if (!fileId) return { sucesso: false, erro: 'ID do contrato não encontrado.' };
+
+    var requestId = _chamarApiAssinatura(fileId, email, nome);
+    sh.getRange(row, 5).setValue(requestId || '');
+    sh.getRange(row, 7).setValue(requestId ? 'Pendente' : 'Erro API');
+    sh.getRange(row, 8).setValue(new Date());
+    return requestId ? { sucesso: true } : { sucesso: false, erro: 'Erro ao comunicar com API de assinatura.' };
+  } catch (e) {
+    Logger.log('reenviarPedidoAssinatura: ' + e.toString());
+    return { sucesso: false, erro: e.message };
+  }
+}
+
+function listarContratos() {
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_TOKENS_ID');
+  if (!id) return [];
+  var ss;
+  try { ss = SpreadsheetApp.openById(id); } catch(e) { return []; }
+  var sh = ss.getSheetByName('Assinaturas');
+  if (!sh || sh.getLastRow() < 2) return [];
+
+  var data   = sh.getDataRange().getValues();
+  var tz     = Session.getScriptTimeZone();
+  var result = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var r = data[i];
+    if (!String(r[0]).trim()) continue;
+    var cId = String(r[5] || '').trim();
+    result.push({
+      token:       String(r[0] || ''),
+      candidato:   String(r[1] || ''),
+      email:       String(r[2] || ''),
+      unidade:     String(r[3] || ''),
+      requestId:   String(r[4] || ''),
+      contratoId:  cId,
+      contratoUrl: cId ? 'https://docs.google.com/document/d/' + cId + '/edit' : '',
+      status:      String(r[6] || ''),
+      enviadoEm:   r[7] instanceof Date ? Utilities.formatDate(r[7], tz, 'dd/MM/yyyy HH:mm') : String(r[7] || ''),
+      assinadoEm:  r[8] instanceof Date ? Utilities.formatDate(r[8], tz, 'dd/MM/yyyy HH:mm') : String(r[8] || '')
+    });
+  }
+  return result.reverse();
 }
 
 // ── PDF ───────────────────────────────────────────────────────────────────────

@@ -124,6 +124,35 @@
     }
     .login-card .btn-entrar:hover { background: #283593; }
     .login-erro { margin-top: 14px; padding: 10px 14px; background: #ffebee; border-left: 3px solid #c62828; border-radius: 6px; font-size: 13px; color: #b71c1c; display: none; text-align: left; }
+
+    /* Badges de contrato */
+    .badge-assinado     { background: #e8f5e9; color: #2e7d32; }
+    .badge-aguard-assin { background: #e3f2fd; color: #1565c0; }
+    .badge-erro-api     { background: #ffebee; color: #c62828; }
+
+    /* Modal de geração de contrato */
+    .modal-overlay-contrato {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay-contrato.ativo { display: flex; }
+    .modal-caixa-contrato {
+      background: #fff; border-radius: 12px; padding: 32px;
+      max-width: 540px; width: 90%; max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    }
+    .modal-caixa-contrato h3 { font-size: 17px; font-weight: 700; color: #1a237e; margin-bottom: 20px; }
+    .modal-info-row { display: flex; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+    .modal-info-label { font-weight: 600; color: #555; min-width: 120px; }
+    .modal-info-valor { color: #333; }
+    .modal-separador { border: none; border-top: 1px solid #e8eaf6; margin: 16px 0; }
+    .modal-feedback { margin-top: 14px; padding: 10px 14px; border-radius: 6px; font-size: 13px; display: none; }
+    .modal-feedback.sucesso { background: #e8f5e9; border-left: 4px solid #2e7d32; color: #1b5e20; }
+    .modal-feedback.erro    { background: #ffebee; border-left: 4px solid #c62828; color: #b71c1c; }
+    .modal-acoes { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+    .btn-cancelar { padding: 10px 20px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 7px; cursor: pointer; font-size: 14px; }
+    .btn-cancelar:hover { background: #e8e8e8; }
   </style>
 </head>
 <body>
@@ -199,6 +228,40 @@
     <div id="enviosContainer"><div class="loading">Carregando...</div></div>
   </div>
 
+  <!-- Contratos para assinatura -->
+  <div class="card">
+    <div class="card-titulo">Contratos para assinatura</div>
+    <div id="contratosContainer"><div class="loading">Carregando...</div></div>
+  </div>
+
+</div>
+
+<!-- Modal: Gerar Contrato -->
+<div class="modal-overlay-contrato" id="modalContrato" onclick="if(event.target===this)fecharModalContrato()">
+  <div class="modal-caixa-contrato">
+    <h3>📄 Gerar Contrato de Trabalho</h3>
+    <div id="modalContratoInfo"></div>
+    <hr class="modal-separador">
+    <div class="form-group">
+      <label for="modalCtps">Número da CTPS <span style="color:#c62828">*</span></label>
+      <input type="text" id="modalCtps" placeholder="Ex: 12345678">
+    </div>
+    <div class="form-row" style="margin-top:12px">
+      <div class="form-group">
+        <label for="modalSalario">Salário (R$) <span style="color:#c62828">*</span></label>
+        <input type="text" id="modalSalario" placeholder="Ex: 1.500,00">
+      </div>
+      <div class="form-group">
+        <label for="modalSalarioExtenso">Salário por extenso <span style="color:#c62828">*</span></label>
+        <input type="text" id="modalSalarioExtenso" placeholder="Ex: mil e quinhentos reais">
+      </div>
+    </div>
+    <div class="modal-acoes">
+      <button class="btn-gerar" id="btnConfirmarContrato" onclick="confirmarGerarContrato()">Gerar e enviar para assinatura</button>
+      <button class="btn-cancelar" onclick="fecharModalContrato()">Cancelar</button>
+    </div>
+    <div class="modal-feedback" id="modalContratoFeedback"></div>
+  </div>
 </div>
 
 <script>
@@ -233,6 +296,7 @@
           carregarSolicitacoes();
           carregarTokens();
           carregarEnvios();
+          carregarContratos();
           google.script.run.withSuccessHandler(preencherSelectUnidades).listarUnidades();
         } else {
           mostrarErroLogin(res.motivo);
@@ -532,7 +596,7 @@
     }
 
     var html = '<table><thead><tr>' +
-      '<th>Candidato</th><th>Unidade</th><th>Data de envio</th><th>Status</th><th>Drive</th><th></th>' +
+      '<th>Candidato</th><th>Unidade</th><th>Data de envio</th><th>Status</th><th>Drive</th><th>Contrato</th><th></th>' +
       '</tr></thead><tbody>';
 
     envios.forEach(function(e, idx) {
@@ -545,16 +609,21 @@
         ? '<a href="' + esc(e.pastaUrl) + '" target="_blank" class="btn-copiar-link">📁 Abrir</a>'
         : '—';
 
+      var btnContrato = pendCount === 0
+        ? '<button class="btn-acao btn-acao-gerar" onclick="abrirModalContrato(\'' + esc(e.token) + '\')">📄 Gerar</button>'
+        : '—';
+
       html += '<tr>' +
         '<td><strong>' + (esc(e.candidato) || '—') + '</strong></td>' +
         '<td>' + (esc(e.unidade)   || '—') + '</td>' +
         '<td>' + (esc(e.dataEnvio) || '—') + '</td>' +
         '<td>' + badge + '</td>' +
         '<td>' + pastaBtn + '</td>' +
+        '<td>' + btnContrato + '</td>' +
         '<td><button class="btn-copiar-link" onclick="toggleDocs(' + idx + ')">▼ Documentos</button></td>' +
         '</tr>' +
         '<tr id="docs-row-' + idx + '" class="detail-row" style="display:none">' +
-        '<td colspan="6">' +
+        '<td colspan="7">' +
         '<div class="docs-detalhe">' +
         '<div class="docs-col enviados-col">' +
         '<strong>Enviados (' + e.enviados.length + ')</strong>' +
@@ -586,6 +655,159 @@
     carregarSolicitacoes();
     carregarTokens();
     carregarEnvios();
+    carregarContratos();
+  }
+
+  // ── Contratos ───────────────────────────────────────────────────────────────
+
+  var _modalContratoToken = '';
+
+  function abrirModalContrato(token) {
+    _modalContratoToken = token;
+    document.getElementById('modalCtps').value = '';
+    document.getElementById('modalSalario').value = '';
+    document.getElementById('modalSalarioExtenso').value = '';
+    document.getElementById('modalContratoFeedback').style.display = 'none';
+    document.getElementById('btnConfirmarContrato').disabled = false;
+    document.getElementById('btnConfirmarContrato').textContent = 'Gerar e enviar para assinatura';
+
+    document.getElementById('modalContratoInfo').innerHTML = '<div class="loading">Carregando dados...</div>';
+    document.getElementById('modalContrato').classList.add('ativo');
+
+    google.script.run
+      .withSuccessHandler(function(dados) {
+        if (dados.erro) {
+          document.getElementById('modalContratoInfo').innerHTML =
+            '<div style="color:#c62828">' + esc(dados.erro) + '</div>';
+          return;
+        }
+        var html =
+          '<div class="modal-info-row"><span class="modal-info-label">Candidato:</span><span class="modal-info-valor"><strong>' + esc(dados.candidato) + '</strong></span></div>' +
+          '<div class="modal-info-row"><span class="modal-info-label">Unidade:</span><span class="modal-info-valor">' + esc(dados.unidade) + '</span></div>' +
+          '<div class="modal-info-row"><span class="modal-info-label">Razão Social:</span><span class="modal-info-valor">' + esc(dados.razaoSocial) + '</span></div>' +
+          '<div class="modal-info-row"><span class="modal-info-label">Cargo:</span><span class="modal-info-valor">' + (esc(dados.cargo) || '<em style="color:#aaa">não informado</em>') + '</span></div>' +
+          '<div class="modal-info-row"><span class="modal-info-label">Jornada:</span><span class="modal-info-valor">' + (esc(dados.jornada) || '<em style="color:#aaa">não informada</em>') + '</span></div>' +
+          '<div class="modal-info-row"><span class="modal-info-label">Data Admissão:</span><span class="modal-info-valor">' + (esc(dados.dataAdmissao) || '<em style="color:#aaa">não informada</em>') + '</span></div>';
+        document.getElementById('modalContratoInfo').innerHTML = html;
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById('modalContratoInfo').innerHTML =
+          '<div style="color:#c62828">Erro ao carregar dados: ' + esc(err.message) + '</div>';
+      })
+      .getDadosParaContrato(token);
+  }
+
+  function fecharModalContrato() {
+    document.getElementById('modalContrato').classList.remove('ativo');
+    _modalContratoToken = '';
+  }
+
+  function confirmarGerarContrato() {
+    var ctps            = document.getElementById('modalCtps').value.trim();
+    var salario         = document.getElementById('modalSalario').value.trim();
+    var salarioExtenso  = document.getElementById('modalSalarioExtenso').value.trim();
+
+    if (!ctps || !salario || !salarioExtenso) {
+      mostrarFeedbackModal('erro', 'Preencha todos os campos obrigatórios (CTPS, Salário e Salário por extenso).');
+      return;
+    }
+
+    var btn = document.getElementById('btnConfirmarContrato');
+    btn.disabled = true;
+    btn.textContent = 'Gerando...';
+    document.getElementById('modalContratoFeedback').style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'Gerar e enviar para assinatura';
+        if (res.sucesso) {
+          mostrarFeedbackModal('sucesso', 'Contrato gerado e enviado para assinatura! ' +
+            (res.requestId ? 'Pedido de assinatura criado com sucesso.' : 'Atenção: API de assinatura não respondeu — verifique o contrato no Drive e envie manualmente.') +
+            ' <a href="' + esc(res.contratoUrl || '') + '" target="_blank" style="color:#1b5e20">Abrir contrato</a>');
+          carregarContratos();
+        } else {
+          mostrarFeedbackModal('erro', 'Erro: ' + esc(res.erro || 'erro desconhecido.'));
+        }
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Gerar e enviar para assinatura';
+        mostrarFeedbackModal('erro', 'Falha na comunicação: ' + esc(err.message));
+      })
+      .gerarEEnviarContrato(_modalContratoToken, ctps, salario, salarioExtenso);
+  }
+
+  function mostrarFeedbackModal(tipo, html) {
+    var el = document.getElementById('modalContratoFeedback');
+    el.className = 'modal-feedback ' + tipo;
+    el.innerHTML = html;
+    el.style.display = 'block';
+  }
+
+  function carregarContratos() {
+    document.getElementById('contratosContainer').innerHTML = '<div class="loading">Carregando...</div>';
+    google.script.run
+      .withSuccessHandler(renderizarContratos)
+      .withFailureHandler(function(err) {
+        document.getElementById('contratosContainer').innerHTML =
+          '<div class="vazio">Erro ao carregar: ' + esc(err.message) + '</div>';
+      })
+      .listarContratos();
+  }
+
+  function renderizarContratos(lista) {
+    if (!lista || lista.length === 0) {
+      document.getElementById('contratosContainer').innerHTML =
+        '<div class="vazio">Nenhum contrato gerado ainda.</div>';
+      return;
+    }
+
+    var html = '<table><thead><tr>' +
+      '<th>Candidato</th><th>Unidade</th><th>Enviado em</th><th>Status</th><th>Assinado em</th><th>Ações</th>' +
+      '</tr></thead><tbody>';
+
+    lista.forEach(function(c) {
+      var badge;
+      switch (c.status) {
+        case 'Assinado': badge = '<span class="badge badge-assinado">Assinado ✓</span>'; break;
+        case 'Pendente': badge = '<span class="badge badge-aguard-assin">⏳ Aguardando</span>'; break;
+        default:         badge = '<span class="badge badge-erro-api">Erro API</span>';
+      }
+
+      var acoes = '';
+      if (c.contratoUrl) {
+        acoes += '<a href="' + esc(c.contratoUrl) + '" target="_blank" class="btn-copiar-link" style="margin-right:6px">📄 Ver</a>';
+      }
+      if (c.status !== 'Assinado') {
+        var t64 = btoa(c.token);
+        acoes += '<button class="btn-acao btn-acao-gerar" style="font-size:11px" onclick="reenviarContrato(\'' + t64 + '\')">↺ Reenviar</button>';
+      }
+
+      html += '<tr>' +
+        '<td><strong>' + (esc(c.candidato) || '—') + '</strong></td>' +
+        '<td>' + (esc(c.unidade)    || '—') + '</td>' +
+        '<td>' + (esc(c.enviadoEm)  || '—') + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td>' + (esc(c.assinadoEm) || '—') + '</td>' +
+        '<td>' + acoes + '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('contratosContainer').innerHTML = html;
+  }
+
+  function reenviarContrato(token64) {
+    if (!confirm('Reenviar pedido de assinatura para este candidato?')) return;
+    var token = atob(token64);
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.sucesso) carregarContratos();
+        else alert('Erro: ' + res.erro);
+      })
+      .withFailureHandler(function(err) { alert('Erro: ' + err.message); })
+      .reenviarPedidoAssinatura(token);
   }
 
   // Carregamento inicial feito após autenticação bem-sucedida
