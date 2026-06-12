@@ -14,7 +14,7 @@
     }
     .header h1 { font-size: 20px; font-weight: 700; }
     .header p  { font-size: 13px; opacity: 0.75; margin-top: 4px; }
-    .container { max-width: 960px; margin: 0 auto; padding: 28px 20px; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 28px 28px; }
 
     .card { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
     .card-titulo { font-size: 15px; font-weight: 700; color: #1a237e; padding-bottom: 14px; margin-bottom: 20px; border-bottom: 2px solid #e8eaf6; }
@@ -73,6 +73,10 @@
     .btn-copiar-link:hover { background: #c5cae9; }
     .btn-excluir { padding: 4px 10px; background: #ffebee; border: none; border-radius: 5px; font-size: 12px; color: #c62828; cursor: pointer; font-weight: 600; }
     .btn-excluir:hover { background: #ffcdd2; }
+    .btn-email { padding: 4px 10px; background: #e8f5e9; border: none; border-radius: 5px; font-size: 12px; color: #2e7d32; cursor: pointer; font-weight: 600; }
+    .btn-email:hover { background: #c8e6c9; }
+    .btn-email:disabled { opacity: .5; cursor: not-allowed; }
+    .acoes-cel { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 
     .link-inline { font-family: monospace; font-size: 11px; color: #555; word-break: break-all; display: block; margin-top: 4px; max-width: 280px; }
 
@@ -193,6 +197,10 @@
         <input type="text" id="nomeCandidato" placeholder="Ex: João da Silva">
       </div>
       <div class="form-group" style="flex:2">
+        <label for="emailAvulso">E-mail do candidato</label>
+        <input type="email" id="emailAvulso" placeholder="candidato@email.com">
+      </div>
+      <div class="form-group" style="flex:2">
         <label for="selectUnidade">Unidade</label>
         <select id="selectUnidade" disabled>
           <option value="">Carregando...</option>
@@ -204,7 +212,10 @@
     <div class="resultado" id="resultado">
       <strong id="resultadoTitulo"></strong>
       <div class="link-gerado" id="linkGerado"></div>
-      <button class="btn-copiar" onclick="copiarLink()">Copiar link</button>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn-copiar" onclick="copiarLink()" style="margin-top:0">Copiar link</button>
+        <button class="btn-email" id="btnEmailAvulso" style="padding:7px 16px;font-size:13px" onclick="enviarEmailAvulso(this)">✉ Enviar por e-mail</button>
+      </div>
     </div>
   </div>
 
@@ -275,12 +286,16 @@
 </div>
 
 <script>
-  var _ultimoLink = '';
+  var _ultimoLink  = '';
   var _tokensCache = [];
+  var _ultimoEmailAvulso = '';
+  var _ultimoNomeAvulso  = '';
+  var _ultimoUnidAvulso  = '';
 
   function esc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+  function q(v) { return JSON.stringify(String(v || '')).replace(/"/g, '&quot;'); }
 
   // ── Login via Hub ──────────────────────────────────────────────────────────
 
@@ -339,7 +354,7 @@
     }
 
     var html = '<table><thead><tr>' +
-      '<th>Candidato</th><th>Unidade</th><th>Cargo</th><th>Data Admissão</th>' +
+      '<th>Candidato</th><th>E-mail</th><th>Unidade</th><th>Cargo</th><th>Data Admissão</th>' +
       '<th>Solicitado em</th><th>Status</th><th>Ação</th>' +
       '</tr></thead><tbody>';
 
@@ -353,23 +368,34 @@
         default:             badge = '<span class="badge badge-sol-pendente">' + esc(s.status) + '</span>';
       }
 
-      var acao = '';
+      var idQ    = q(s.id);
+      var nomeQ  = q(s.nome);
+      var emailQ = q(s.email);
+      var unidQ  = q(s.unidade);
+      var linkQ  = q(s.linkCandidato);
+
+      var acoes = '<div class="acoes-cel">';
       if (s.status === 'Pendente') {
-        acao = '<button class="btn-acao btn-acao-gerar" id="btn-sol-' + s.id + '" ' +
-               'onclick="gerarLinkSolicitacao(\'' + s.id + '\')">Gerar link</button>';
+        acoes += '<button class="btn-acao btn-acao-gerar" id="btn-sol-' + s.id + '" ' +
+                 'onclick="gerarLinkSolicitacao(' + idQ + ')">Gerar link</button>';
       } else if (s.linkCandidato) {
-        acao = '<button class="btn-copiar-link" data-link="' + esc(s.linkCandidato) + '" ' +
-               'onclick="copiarLinkSolicitacao(this, \'' + s.linkCandidato + '\')">Copiar link</button>';
+        acoes += '<button class="btn-copiar-link" onclick="copiarLinkSolicitacao(this,' + linkQ + ')">Copiar link</button>';
+        if (s.email) {
+          acoes += '<button class="btn-email" onclick="enviarEmailLink(' + emailQ + ',' + nomeQ + ',' + unidQ + ',' + linkQ + ',this)">✉ Enviar e-mail</button>';
+        }
       }
+      acoes += '<button class="btn-excluir" onclick="deletarSolicitacaoAdmin(' + idQ + ',' + nomeQ + ')">✕</button>';
+      acoes += '</div>';
 
       html += '<tr>' +
         '<td><strong>' + (esc(s.nome)        || '—') + '</strong></td>' +
+        '<td>' + (esc(s.email)               || '—') + '</td>' +
         '<td>' + (esc(s.unidade)             || '—') + '</td>' +
         '<td>' + (esc(s.cargo)               || '—') + '</td>' +
         '<td>' + (esc(s.dataAdmissao)        || '—') + '</td>' +
         '<td>' + (esc(s.criado)              || '—') + '</td>' +
         '<td>' + badge + '</td>' +
-        '<td id="acao-sol-' + s.id + '">' + acao + '</td>' +
+        '<td id="acao-sol-' + s.id + '">' + acoes + '</td>' +
         '</tr>';
     });
 
@@ -380,19 +406,8 @@
   function gerarLinkSolicitacao(id) {
     var btn = document.getElementById('btn-sol-' + id);
     if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
-
     google.script.run
-      .withSuccessHandler(function(res) {
-        var cell = document.getElementById('acao-sol-' + id);
-        if (cell) {
-          cell.innerHTML =
-            '<button class="btn-copiar-link" onclick="copiarLinkSolicitacao(this, \'' + res.url + '\')">' +
-            'Copiar link</button>' +
-            '<span class="link-inline">' + esc(res.url) + '</span>';
-        }
-        // Atualiza badge na linha
-        carregarSolicitacoes();
-      })
+      .withSuccessHandler(function() { carregarSolicitacoes(); })
       .withFailureHandler(function(err) {
         if (btn) { btn.disabled = false; btn.textContent = 'Gerar link'; }
         alert('Erro: ' + err.message);
@@ -424,6 +439,7 @@
 
   function gerarToken() {
     var candidato  = document.getElementById('nomeCandidato').value.trim();
+    var email      = document.getElementById('emailAvulso').value.trim();
     var unidadeVal = document.getElementById('selectUnidade').value;
 
     if (!candidato || !unidadeVal) {
@@ -443,10 +459,18 @@
       .withSuccessHandler(function(res) {
         btn.disabled = false;
         btn.textContent = 'Gerar link';
-        _ultimoLink = res.url;
+        _ultimoLink       = res.url;
+        _ultimoEmailAvulso = email;
+        _ultimoNomeAvulso  = candidato;
+        _ultimoUnidAvulso  = unidadeNome;
         mostrarResultado(true, 'Link gerado para <strong>' + candidato + '</strong> — ' + unidadeNome + ':');
         document.getElementById('linkGerado').textContent = res.url;
+        var btnEmail = document.getElementById('btnEmailAvulso');
+        btnEmail.style.display = email ? '' : 'none';
+        btnEmail.disabled = false;
+        btnEmail.textContent = '✉ Enviar por e-mail';
         document.getElementById('nomeCandidato').value = '';
+        document.getElementById('emailAvulso').value   = '';
         document.getElementById('selectUnidade').value = '';
         carregarTokens();
       })
@@ -455,7 +479,51 @@
         btn.textContent = 'Gerar link';
         mostrarResultado(false, 'Erro ao gerar token: ' + err.message);
       })
-      .criarToken(candidato, unidadeId, unidadeNome);
+      .criarToken(candidato, unidadeId, unidadeNome, email);
+  }
+
+  function enviarEmailAvulso(btn) {
+    if (!_ultimoEmailAvulso || !_ultimoLink) { alert('Nenhum link disponível para enviar.'); return; }
+    enviarEmailLink(_ultimoEmailAvulso, _ultimoNomeAvulso, _ultimoUnidAvulso, _ultimoLink, btn);
+  }
+
+  function enviarEmailLink(email, nome, unidade, link, btn) {
+    var orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.textContent = '✓ Enviado!';
+        setTimeout(function() { btn.textContent = orig; btn.disabled = false; }, 3000);
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.textContent = orig;
+        alert('Erro ao enviar e-mail: ' + err.message);
+      })
+      .enviarEmailAdmissao(email, nome, unidade, link);
+  }
+
+  function deletarEnvioAdmin(token, candidato) {
+    if (!confirm('Excluir o formulário recebido de "' + candidato + '"?\nEsta ação remove apenas o registro — a pasta no Drive não é afetada.')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.ok) carregarEnvios();
+        else alert('Erro: ' + res.erro);
+      })
+      .withFailureHandler(function(err) { alert('Erro: ' + err.message); })
+      .deletarEnvio(token);
+  }
+
+  function deletarSolicitacaoAdmin(id, nome) {
+    if (!confirm('Excluir a solicitação de "' + nome + '"?\nEsta ação não pode ser desfeita.')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.ok) carregarSolicitacoes();
+        else alert('Erro: ' + res.erro);
+      })
+      .withFailureHandler(function(err) { alert('Erro: ' + err.message); })
+      .deletarSolicitacao(id);
   }
 
   function mostrarResultado(sucesso, html) {
@@ -554,18 +622,24 @@
         : t.incompleto
           ? '<span class="badge badge-incompleto">Incompleto</span>'
           : '<span class="badge badge-pendente">Aguardando</span>';
+      var token64     = btoa(t.token);
+      var candidatoJs = JSON.stringify(t.candidato || '');
+      var emailJs     = JSON.stringify(t.email || '');
+      var unidadeJs   = JSON.stringify(t.unidade || '');
+      var linkJs      = JSON.stringify(t.link || '');
       var linkBtn = t.link
         ? '<button class="btn-copiar-link" data-link="' + esc(t.link) + '" onclick="copiarLinkTabela(\'' + t.link + '\')">Copiar</button>'
         : '—';
-      var token64 = btoa(t.token);
-      var candidatoJs = JSON.stringify(t.candidato || '').replace(/"/g, '&quot;');
+      var emailBtn = (t.email && !t.usado)
+        ? '<button class="btn-email" onclick="enviarEmailLink(' + emailJs.replace(/"/g,'&quot;') + ',' + candidatoJs.replace(/"/g,'&quot;') + ',' + unidadeJs.replace(/"/g,'&quot;') + ',' + linkJs.replace(/"/g,'&quot;') + ',this)">✉ Enviar</button>'
+        : '';
       html += '<tr>' +
         '<td>' + (esc(t.candidato) || '—') + '</td>' +
         '<td>' + (esc(t.unidade)   || '—') + '</td>' +
         '<td>' + (esc(t.criado)    || '—') + '</td>' +
         '<td>' + badge + '</td>' +
-        '<td>' + linkBtn + '</td>' +
-        '<td><button class="btn-excluir" onclick="excluirToken(\'' + token64 + '\',' + candidatoJs + ')">✕ Excluir</button></td>' +
+        '<td><div class="acoes-cel">' + linkBtn + emailBtn + '</div></td>' +
+        '<td><button class="btn-excluir" onclick="excluirToken(\'' + token64 + '\',' + candidatoJs.replace(/"/g,'&quot;') + ')">✕ Excluir</button></td>' +
         '</tr>';
     });
 
@@ -606,7 +680,7 @@
     }
 
     var html = '<table><thead><tr>' +
-      '<th>Candidato</th><th>Unidade</th><th>Data de envio</th><th>Status</th><th>Drive</th><th>Contrato</th><th></th>' +
+      '<th>Candidato</th><th>Unidade</th><th>Data de envio</th><th>Status</th><th>Drive</th><th>Contrato</th><th>Docs</th><th></th>' +
       '</tr></thead><tbody>';
 
     envios.forEach(function(e, idx) {
@@ -623,6 +697,9 @@
         ? '<button class="btn-acao btn-acao-gerar" onclick="abrirModalContrato(\'' + esc(e.token) + '\')">📄 Gerar</button>'
         : '—';
 
+      var tokenJs     = JSON.stringify(e.token || '');
+      var candidatoJs = JSON.stringify(e.candidato || '');
+
       html += '<tr>' +
         '<td><strong>' + (esc(e.candidato) || '—') + '</strong></td>' +
         '<td>' + (esc(e.unidade)   || '—') + '</td>' +
@@ -630,10 +707,11 @@
         '<td>' + badge + '</td>' +
         '<td>' + pastaBtn + '</td>' +
         '<td>' + btnContrato + '</td>' +
-        '<td><button class="btn-copiar-link" onclick="toggleDocs(' + idx + ')">▼ Documentos</button></td>' +
+        '<td><button class="btn-copiar-link" onclick="toggleDocs(' + idx + ')">▼ Docs</button></td>' +
+        '<td><button class="btn-excluir" onclick="deletarEnvioAdmin(' + tokenJs.replace(/"/g,'&quot;') + ',' + candidatoJs.replace(/"/g,'&quot;') + ')">✕</button></td>' +
         '</tr>' +
         '<tr id="docs-row-' + idx + '" class="detail-row" style="display:none">' +
-        '<td colspan="7">' +
+        '<td colspan="8">' +
         '<div class="docs-detalhe">' +
         '<div class="docs-col enviados-col">' +
         '<strong>Enviados (' + e.enviados.length + ')</strong>' +

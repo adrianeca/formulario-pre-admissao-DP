@@ -30,6 +30,7 @@
     .campo label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
     .campo label .req { color: #c62828; margin-left: 2px; }
     .campo input[type="text"],
+    .campo input[type="email"],
     .campo input[type="date"],
     .campo select {
       width: 100%; padding: 10px 13px;
@@ -102,6 +103,12 @@
       <label for="nome">Nome Completo do Funcionário <span class="req">*</span></label>
       <input type="text" id="nome" placeholder="Ex: João da Silva">
       <span class="msg-erro" id="err-nome">Informe o nome completo.</span>
+    </div>
+
+    <div class="campo">
+      <label for="email">E-mail do Candidato <span class="req">*</span></label>
+      <input type="email" id="email" placeholder="candidato@email.com">
+      <span class="msg-erro" id="err-email">Informe um e-mail válido.</span>
     </div>
 
     <div class="campo">
@@ -227,9 +234,14 @@
     }
   }
 
+  function validarEmail(e) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+  }
+
   function enviar() {
     var unidade = document.getElementById('unidade').value;
     var nome    = document.getElementById('nome').value.trim();
+    var email   = document.getElementById('email').value.trim();
     var cpf     = document.getElementById('cpf').value;
     var cargo   = document.getElementById('cargo').value;
     var jornada = document.getElementById('jornada').value.trim();
@@ -239,12 +251,13 @@
 
     marcarErro('unidade',     !unidade);
     marcarErro('nome',        !nome);
+    marcarErro('email',       !validarEmail(email));
     marcarErro('cpf',         !validarCpf(cpf));
     marcarErro('cargo',       !cargo);
     marcarErro('jornada',     !jornada);
     marcarErro('dataAdmissao', !dataValida);
 
-    if (!unidade || !nome || !validarCpf(cpf) || !cargo || !jornada || !dataValida) return;
+    if (!unidade || !nome || !validarEmail(email) || !validarCpf(cpf) || !cargo || !jornada || !dataValida) return;
 
     document.getElementById('overlay').classList.add('ativo');
     document.getElementById('btnEnviar').disabled = true;
@@ -271,6 +284,7 @@
       .processarSolicitacao({
         unidade:      unidade,
         nome:         nome,
+        email:        email,
         cpf:          cpf,
         cargo:        cargo,
         jornada:      jornada,

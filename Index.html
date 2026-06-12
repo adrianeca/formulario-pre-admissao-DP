@@ -305,13 +305,32 @@
         <input type="tel" id="telefone" placeholder="(00) 00000-0000" maxlength="15">
         <div class="msg-erro" id="err-telefone">Informe o telefone com DDD.</div>
       </div>
+
+      <div class="campo">
+        <label for="cepResidencia">CEP <span class="req">*</span></label>
+        <input type="text" id="cepResidencia" placeholder="00000-000" maxlength="9">
+        <div class="msg-erro" id="err-cepResidencia">Informe o CEP.</div>
+      </div>
+
+      <div class="campo">
+        <label for="ruaNumeroResidencia">Rua e número <span class="req">*</span></label>
+        <input type="text" id="ruaNumeroResidencia" placeholder="Ex: Rua das Flores, 123">
+        <div class="msg-erro" id="err-ruaNumeroResidencia">Informe a rua e o número.</div>
+      </div>
+
+      <div class="campo">
+        <label for="bairroResidencia">Bairro <span class="req">*</span></label>
+        <input type="text" id="bairroResidencia" placeholder="Ex: Tijuca">
+        <div class="msg-erro" id="err-bairroResidencia">Informe o bairro.</div>
+      </div>
     </div>
 
     <!-- ── 2. Unidade ── -->
     <div class="card">
       <div class="card-titulo">2. Unidade</div>
       <div class="campo">
-        <label for="unidade">Selecione a unidade <span class="req">*</span></label>
+        <label id="labelUnidade" for="unidade">Selecione a unidade <span class="req">*</span></label>
+        <div id="unidadeDisplay" style="display:none; padding:12px 14px; background:#e8eaf6; border:1.5px solid #c5cae9; border-radius:7px; font-size:15px; color:#1a237e; font-weight:700;"></div>
         <select id="unidade">
           <option value="">— Selecione —</option>
           <option value="Kansas Assessoria Linguística Ltda">Botafogo</option>
@@ -355,15 +374,29 @@
         <label>Possui conta no Itaú? <span class="req">*</span></label>
         <div class="radio-grupo">
           <div class="radio-opcao">
-            <input type="radio" id="itau-sim" name="contaItau" value="Sim">
+            <input type="radio" id="itau-sim" name="contaItau" value="Sim" onchange="toggleDadosBancarios(this)">
             <label for="itau-sim">Sim</label>
           </div>
           <div class="radio-opcao">
-            <input type="radio" id="itau-nao" name="contaItau" value="Não">
+            <input type="radio" id="itau-nao" name="contaItau" value="Não" onchange="toggleDadosBancarios(this)">
             <label for="itau-nao">Não</label>
           </div>
         </div>
         <div class="msg-erro" id="err-contaItau">Selecione uma opção.</div>
+      </div>
+
+      <div class="secao-condicional" id="secaoBanco">
+        <hr class="divisor">
+        <div class="campo">
+          <label for="agenciaBanco">Agência <span class="req">*</span></label>
+          <input type="text" id="agenciaBanco" placeholder="Ex: 0001">
+          <div class="msg-erro" id="err-agenciaBanco">Informe a agência.</div>
+        </div>
+        <div class="campo">
+          <label for="contaBanco">Conta (com dígito) <span class="req">*</span></label>
+          <input type="text" id="contaBanco" placeholder="Ex: 12345-6">
+          <div class="msg-erro" id="err-contaBanco">Informe o número da conta.</div>
+        </div>
       </div>
     </div>
 
@@ -405,21 +438,30 @@
         </div>
 
         <div class="campo">
-          <label for="cepOrigem">CEP <span class="req">*</span></label>
-          <input type="text" id="cepOrigem" placeholder="00000-000" maxlength="9">
-          <div class="msg-erro" id="err-cepOrigem">Informe o CEP.</div>
+          <label class="check-depois" style="font-size:13px; color:#333; font-weight:600; cursor:pointer;">
+            <input type="checkbox" id="mesmoEnderecoVT" checked onchange="toggleEnderecoVT(this)">
+            Usar o mesmo endereço de residência informado nos Dados Pessoais
+          </label>
         </div>
 
-        <div class="campo">
-          <label for="ruaNumeroOrigem">Rua e número <span class="req">*</span></label>
-          <input type="text" id="ruaNumeroOrigem" placeholder="Ex: Rua das Flores, 123">
-          <div class="msg-erro" id="err-ruaNumeroOrigem">Informe a rua e número.</div>
-        </div>
+        <div class="secao-condicional" id="secaoEnderecoVT">
+          <div class="campo">
+            <label for="cepVT">CEP (endereço de partida) <span class="req">*</span></label>
+            <input type="text" id="cepVT" placeholder="00000-000" maxlength="9">
+            <div class="msg-erro" id="err-cepVT">Informe o CEP.</div>
+          </div>
 
-        <div class="campo">
-          <label for="bairroOrigem">Bairro <span class="req">*</span></label>
-          <input type="text" id="bairroOrigem" placeholder="Ex: Tijuca">
-          <div class="msg-erro" id="err-bairroOrigem">Informe o bairro.</div>
+          <div class="campo">
+            <label for="ruaNumeroVT">Rua e número <span class="req">*</span></label>
+            <input type="text" id="ruaNumeroVT" placeholder="Ex: Rua das Flores, 123">
+            <div class="msg-erro" id="err-ruaNumeroVT">Informe a rua e o número.</div>
+          </div>
+
+          <div class="campo">
+            <label for="bairroVT">Bairro <span class="req">*</span></label>
+            <input type="text" id="bairroVT" placeholder="Ex: Tijuca">
+            <div class="msg-erro" id="err-bairroVT">Informe o bairro.</div>
+          </div>
         </div>
 
         <div class="campo">
@@ -476,7 +518,8 @@
     { id: 'vacinacao',     rotulo: 'CARTÃO DE VACINAÇÃO DOS MENORES DE 7 ANOS',              req: false },
     { id: 'compEscolar',   rotulo: 'COMPROVANTE ESCOLAR DE FILHOS DE 7 A 14 ANOS',           req: false },
     { id: 'compResidencia', rotulo: 'COMPROVANTE DE RESIDÊNCIA ATUAL',                         req: true  },
-    { id: 'antecedentes',   rotulo: 'ANTECEDENTES CRIMINAIS',                                   req: true  },
+    { id: 'antecedentes',   rotulo: 'ANTECEDENTES CRIMINAIS',                                   req: true,
+      instrucao: 'Emita gratuitamente pelo Portal Gov.br: <a href="https://www.gov.br/pt-br/servicos/emitir-certidao-de-antecedentes-criminais" target="_blank" style="color:#1a237e;font-weight:600;">acessar certidão de antecedentes</a>' },
   ];
 
   // ── Modo incompleto: filtra apenas docs pendentes ────────────────────────
@@ -506,8 +549,13 @@
         'style="width:100%;padding:8px 12px;border:1.5px solid #ddd;border-radius:7px;font-size:13px;">';
     }
 
+    var instrucaoHtml = doc.instrucao
+      ? '<div style="font-size:12px;color:#1a237e;background:#e8eaf6;border-radius:6px;padding:8px 12px;margin-bottom:8px;">ℹ️ ' + doc.instrucao + '</div>'
+      : '';
+
     div.innerHTML =
       '<div class="doc-rotulo">' + doc.rotulo + badge + '</div>' +
+      instrucaoHtml +
       '<label class="file-btn" id="btn-' + doc.id + '" for="file-' + doc.id + '">' +
         '<span>📎</span><span>Adicionar arquivo(s)</span>' +
       '</label>' +
@@ -563,8 +611,12 @@
   if (_UNIDADE_ID) {
     var _sel = document.getElementById('unidade');
     _sel.value = _UNIDADE_ID;
-    _sel.disabled = true;
-    _sel.style.cssText += '; background:#f0f0f0; color:#555; cursor:default; pointer-events:none;';
+    _sel.style.display = 'none';
+    var _disp = document.getElementById('unidadeDisplay');
+    _disp.style.display = 'block';
+    _disp.textContent = _UNIDADE_NOME || _UNIDADE_ID;
+    var _lbl = document.getElementById('labelUnidade');
+    if (_lbl) _lbl.innerHTML = 'Unidade';
   }
 
   function adicionarArquivos(id, input) {
@@ -756,16 +808,23 @@
     this.value = v;
   });
 
-  document.getElementById('cepOrigem') && document.getElementById('cepOrigem').addEventListener('input', function() {
-    var v = this.value.replace(/\D/g, '').slice(0, 8);
-    if (v.length > 5) v = v.slice(0,5)+'-'+v.slice(5);
-    this.value = v;
-    if (v.replace(/\D/g,'').length === 8) buscarCep(v.replace(/\D/g,''));
-  });
+  function mascaraCep(inputEl, idRua, idBairro) {
+    inputEl.addEventListener('input', function() {
+      var v = this.value.replace(/\D/g, '').slice(0, 8);
+      if (v.length > 5) v = v.slice(0,5)+'-'+v.slice(5);
+      this.value = v;
+      if (v.replace(/\D/g,'').length === 8) buscarCep(v.replace(/\D/g,''), idRua, idBairro);
+    });
+  }
 
-  function buscarCep(cep) {
-    var rua    = document.getElementById('ruaNumeroOrigem');
-    var bairro = document.getElementById('bairroOrigem');
+  mascaraCep(document.getElementById('cepResidencia'), 'ruaNumeroResidencia', 'bairroResidencia');
+
+  var _elCepVT = document.getElementById('cepVT');
+  if (_elCepVT) mascaraCep(_elCepVT, 'ruaNumeroVT', 'bairroVT');
+
+  function buscarCep(cep, idRua, idBairro) {
+    var rua    = document.getElementById(idRua);
+    var bairro = document.getElementById(idBairro);
     if (!rua || !bairro) return;
     rua.placeholder = 'Buscando...';
     fetch('https://viacep.com.br/ws/' + cep + '/json/')
@@ -775,8 +834,8 @@
         if (d.erro) return;
         rua.value    = d.logradouro || '';
         bairro.value = d.bairro    || '';
-        if (rua.value)    { rua.classList.remove('invalido');    document.getElementById('err-ruaNumeroOrigem')  && document.getElementById('err-ruaNumeroOrigem').classList.remove('visivel'); }
-        if (bairro.value) { bairro.classList.remove('invalido'); document.getElementById('err-bairroOrigem') && document.getElementById('err-bairroOrigem').classList.remove('visivel'); }
+        if (rua.value)    { rua.classList.remove('invalido');    var er = document.getElementById('err-'+idRua);    if (er) er.classList.remove('visivel'); }
+        if (bairro.value) { bairro.classList.remove('invalido'); var eb = document.getElementById('err-'+idBairro); if (eb) eb.classList.remove('visivel'); }
       })
       .catch(function() { rua.placeholder = 'Ex: Rua das Flores, 123'; });
   }
@@ -787,18 +846,52 @@
       var sec = document.getElementById('secaoVT');
       if (this.value === 'Sim') {
         sec.classList.add('visivel');
+        // Garante que o checkbox "mesmo endereço" começa marcado
+        var cb = document.getElementById('mesmoEnderecoVT');
+        if (cb && !cb.checked) { cb.checked = true; toggleEnderecoVT(cb); }
       } else {
         sec.classList.remove('visivel');
-        // Limpar campos VT
         document.querySelectorAll('input[name="bilheteUnico"]').forEach(function(b) { b.checked = false; });
-        ['cepOrigem','ruaNumeroOrigem','bairroOrigem','modalTransporte','qtdConducoes'].forEach(function(f) {
+        ['cepVT','ruaNumeroVT','bairroVT','modalTransporte','qtdConducoes'].forEach(function(f) {
           var el = document.getElementById(f);
           if (el) { el.value = ''; el.classList.remove('invalido'); }
         });
-        document.getElementById('err-bilheteUnico').classList.remove('visivel');
+        var eb = document.getElementById('err-bilheteUnico');
+        if (eb) eb.classList.remove('visivel');
       }
     });
   });
+
+  function toggleDadosBancarios(radio) {
+    var sec = document.getElementById('secaoBanco');
+    if (radio.value === 'Sim') {
+      sec.classList.add('visivel');
+    } else {
+      sec.classList.remove('visivel');
+      ['agenciaBanco','contaBanco'].forEach(function(f) {
+        var el = document.getElementById(f);
+        if (el) { el.value = ''; el.classList.remove('invalido'); }
+        var er = document.getElementById('err-' + f);
+        if (er) er.classList.remove('visivel');
+      });
+    }
+  }
+
+  function toggleEnderecoVT(cb) {
+    var sec = document.getElementById('secaoEnderecoVT');
+    if (!sec) return;
+    if (cb.checked) {
+      sec.classList.remove('visivel');
+      ['cepVT','ruaNumeroVT','bairroVT'].forEach(function(f) {
+        var el = document.getElementById(f);
+        if (el) { el.value = ''; el.classList.remove('invalido'); }
+        var er = document.getElementById('err-'+f);
+        if (er) er.classList.remove('visivel');
+      });
+    } else {
+      sec.classList.add('visivel');
+    }
+  }
 
   // ── Validação ─────────────────────────────────────────────────────────────
   function validarCPF(cpf) {
@@ -854,6 +947,12 @@
       var telOk = tel.length >= 10;
       mostrarErro('telefone', !telOk); if (!telOk) ok = false;
 
+      // Endereço de residência (sempre obrigatório)
+      ['cepResidencia','ruaNumeroResidencia','bairroResidencia'].forEach(function(f) {
+        var v = document.getElementById(f).value.trim();
+        mostrarErro(f, !v); if (!v) ok = false;
+      });
+
       // Unidade
       var un = document.getElementById('unidade').value;
       mostrarErro('unidade', !un); if (!un) ok = false;
@@ -861,6 +960,12 @@
       // Conta Itaú
       var itau = document.querySelector('input[name="contaItau"]:checked');
       mostrarErroNome('contaItau', !itau); if (!itau) ok = false;
+      if (itau && itau.value === 'Sim') {
+        ['agenciaBanco','contaBanco'].forEach(function(f) {
+          var v = document.getElementById(f).value.trim();
+          mostrarErro(f, !v); if (!v) ok = false;
+        });
+      }
 
       // Vale Transporte
       var vt = document.querySelector('input[name="valeTransporte"]:checked');
@@ -870,7 +975,15 @@
         var bu = document.querySelector('input[name="bilheteUnico"]:checked');
         mostrarErroNome('bilheteUnico', !bu); if (!bu) ok = false;
 
-        ['cepOrigem','ruaNumeroOrigem','bairroOrigem','modalTransporte','qtdConducoes'].forEach(function(f) {
+        var mesmoEnd = document.getElementById('mesmoEnderecoVT');
+        if (mesmoEnd && !mesmoEnd.checked) {
+          ['cepVT','ruaNumeroVT','bairroVT'].forEach(function(f) {
+            var v = document.getElementById(f).value.trim();
+            mostrarErro(f, !v); if (!v) ok = false;
+          });
+        }
+
+        ['modalTransporte','qtdConducoes'].forEach(function(f) {
           var v = document.getElementById(f).value.trim();
           mostrarErro(f, !v); if (!v) ok = false;
         });
@@ -1012,11 +1125,16 @@
         unidade:         _UNIDADE_ID || document.getElementById('unidade').value,
         nomeUnidade:     _UNIDADE_NOME || document.getElementById('unidade').options[document.getElementById('unidade').selectedIndex].text,
         contaItau:       document.querySelector('input[name="contaItau"]:checked').value,
+        agenciaBanco:    (document.querySelector('input[name="contaItau"]:checked') || {}).value === 'Sim' ? document.getElementById('agenciaBanco').value.trim() : '',
+        contaBanco:      (document.querySelector('input[name="contaItau"]:checked') || {}).value === 'Sim' ? document.getElementById('contaBanco').value.trim() : '',
         valeTransporte:  document.querySelector('input[name="valeTransporte"]:checked').value,
         bilheteUnico:    vtSim ? (document.querySelector('input[name="bilheteUnico"]:checked') || {value:''}).value : '',
-        cepOrigem:       vtSim ? document.getElementById('cepOrigem').value.trim() : '',
-        ruaNumeroOrigem: vtSim ? document.getElementById('ruaNumeroOrigem').value.trim() : '',
-        bairroOrigem:    vtSim ? document.getElementById('bairroOrigem').value.trim() : '',
+        cepResidencia:       document.getElementById('cepResidencia').value.trim(),
+        ruaNumeroResidencia: document.getElementById('ruaNumeroResidencia').value.trim(),
+        bairroResidencia:    document.getElementById('bairroResidencia').value.trim(),
+        cepOrigem:       vtSim ? (document.getElementById('mesmoEnderecoVT').checked ? document.getElementById('cepResidencia').value.trim() : document.getElementById('cepVT').value.trim()) : '',
+        ruaNumeroOrigem: vtSim ? (document.getElementById('mesmoEnderecoVT').checked ? document.getElementById('ruaNumeroResidencia').value.trim() : document.getElementById('ruaNumeroVT').value.trim()) : '',
+        bairroOrigem:    vtSim ? (document.getElementById('mesmoEnderecoVT').checked ? document.getElementById('bairroResidencia').value.trim() : document.getElementById('bairroVT').value.trim()) : '',
         modalTransporte: vtSim ? document.getElementById('modalTransporte').value.trim() : '',
         qtdConducoes:    vtSim ? document.getElementById('qtdConducoes').value.trim() : '',
         documentos:      documentos

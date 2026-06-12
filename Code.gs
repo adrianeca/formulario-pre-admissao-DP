@@ -405,14 +405,14 @@ function getTokenSheet() {
     var sh = ss.getActiveSheet();
     sh.setName('Tokens');
 
-    sh.getRange(1, 1, 1, 8).setValues([[
-      'ID / Token', 'Candidato', 'Unidade', 'Link para enviar', 'Status', 'Atualizado em', 'Criado em', 'ID Solicitação'
+    sh.getRange(1, 1, 1, 9).setValues([[
+      'ID / Token', 'Candidato', 'Unidade', 'Link para enviar', 'Status', 'Atualizado em', 'Criado em', 'ID Solicitação', 'Email Candidato'
     ]]);
-    sh.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sh.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
 
     sh.setColumnWidth(1, 130).setColumnWidth(2, 200).setColumnWidth(3, 160)
       .setColumnWidth(4, 480).setColumnWidth(5, 110).setColumnWidth(6, 140)
-      .setColumnWidth(7, 140).setColumnWidth(8, 150);
+      .setColumnWidth(7, 140).setColumnWidth(8, 150).setColumnWidth(9, 220);
 
     sh.setFrozenRows(1);
 
@@ -431,7 +431,7 @@ function getTokenSheet() {
   return ss.getSheetByName('Tokens');
 }
 
-function criarToken(candidato, unidadeId, unidadeNome) {
+function criarToken(candidato, unidadeId, unidadeNome, email) {
   var url = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL');
   if (!url) throw new Error('URL do Web App não configurada. Execute inicializar() primeiro.');
 
@@ -444,6 +444,7 @@ function criarToken(candidato, unidadeId, unidadeNome) {
   sh.getRange(row, 3).clearDataValidations();
   sh.getRange(row, 1, 1, 3).setValues([[token, candidato, unidadeNome]]);
   sh.getRange(row, 7).setValue(new Date());
+  if (email) sh.getRange(row, 9).setValue(email);
 
   return { url: link, token: token };
 }
@@ -469,6 +470,7 @@ function criarTokenParaSolicitacao(solicitacaoId) {
 
   var candidato   = String(solRec[2]);
   var unidadeNome = String(solRec[1]);
+  var emailCandidato = String(solRec[3] || '');
 
   var token = Utilities.getUuid().replace(/-/g, '').substring(0, 10).toUpperCase();
   var link  = url + '?token=' + token;
@@ -480,9 +482,10 @@ function criarTokenParaSolicitacao(solicitacaoId) {
   sh.getRange(row, 1, 1, 3).setValues([[token, candidato, unidadeNome]]);
   sh.getRange(row, 7).setValue(new Date());
   sh.getRange(row, 8).setValue(solicitacaoId);
+  if (emailCandidato) sh.getRange(row, 9).setValue(emailCandidato);
 
-  solSh.getRange(solRow, 8).setValue('Link gerado');
-  solSh.getRange(solRow, 9).setValue(token);
+  solSh.getRange(solRow, 9).setValue('Link gerado');
+  solSh.getRange(solRow, 10).setValue(token);
 
   return { url: link, token: token, candidato: candidato, unidade: unidadeNome };
 }
@@ -507,7 +510,8 @@ function listarTokens() {
       usado:      status === true,
       incompleto: status === 'INCOMPLETO',
       usadoEm:    r[5] instanceof Date ? Utilities.formatDate(r[5], tz, 'dd/MM/yyyy HH:mm') : (r[5] ? String(r[5]) : ''),
-      criado:     r[6] instanceof Date ? Utilities.formatDate(r[6], tz, 'dd/MM/yyyy HH:mm') : (r[6] ? String(r[6]) : '')
+      criado:     r[6] instanceof Date ? Utilities.formatDate(r[6], tz, 'dd/MM/yyyy HH:mm') : (r[6] ? String(r[6]) : ''),
+      email:      String(r[8] || '')
     });
   }
 
@@ -583,14 +587,14 @@ function getSolicitacoesSheet() {
   var sh = ss.getSheetByName('Solicitações');
   if (!sh) {
     sh = ss.insertSheet('Solicitações');
-    sh.getRange(1, 1, 1, 10).setValues([[
-      'ID', 'Unidade', 'Nome', 'CPF', 'Cargo', 'Jornada', 'Data Admissão', 'Status', 'Token', 'Criado em'
+    sh.getRange(1, 1, 1, 11).setValues([[
+      'ID', 'Unidade', 'Nome', 'E-mail', 'CPF', 'Cargo', 'Jornada', 'Data Admissão', 'Status', 'Token', 'Criado em'
     ]]);
-    sh.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sh.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
     sh.setColumnWidth(1, 130).setColumnWidth(2, 150).setColumnWidth(3, 210)
-      .setColumnWidth(4, 130).setColumnWidth(5, 130).setColumnWidth(6, 200)
-      .setColumnWidth(7, 130).setColumnWidth(8, 120).setColumnWidth(9, 120)
-      .setColumnWidth(10, 150);
+      .setColumnWidth(4, 200).setColumnWidth(5, 130).setColumnWidth(6, 130)
+      .setColumnWidth(7, 200).setColumnWidth(8, 130).setColumnWidth(9, 120)
+      .setColumnWidth(10, 120).setColumnWidth(11, 150);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -610,6 +614,7 @@ function processarSolicitacao(dados) {
       id,
       dados.unidade  || '',
       dados.nome     || '',
+      dados.email    || '',
       dados.cpf      || '',
       dados.cargo    || '',
       dados.jornada  || '',
@@ -642,19 +647,20 @@ function listarSolicitacoes() {
   for (var i = 1; i < data.length; i++) {
     var r = data[i];
     if (!String(r[0]).trim()) continue;
-    var tkn = String(r[8] || '');
+    var tkn = String(r[9] || '');
     result.push({
       id:            String(r[0]),
       unidade:       String(r[1] || ''),
       nome:          String(r[2] || ''),
-      cpf:           String(r[3] || ''),
-      cargo:         String(r[4] || ''),
-      jornada:       String(r[5] || ''),
-      dataAdmissao:  r[6] instanceof Date ? Utilities.formatDate(r[6], tz, 'dd/MM/yyyy') : String(r[6] || ''),
-      status:        String(r[7] || 'Pendente'),
+      email:         String(r[3] || ''),
+      cpf:           String(r[4] || ''),
+      cargo:         String(r[5] || ''),
+      jornada:       String(r[6] || ''),
+      dataAdmissao:  r[7] instanceof Date ? Utilities.formatDate(r[7], tz, 'dd/MM/yyyy') : String(r[7] || ''),
+      status:        String(r[8] || 'Pendente'),
       token:         tkn,
       linkCandidato: (tkn && url) ? url + '?token=' + tkn : '',
-      criado:        r[9] instanceof Date ? Utilities.formatDate(r[9], tz, 'dd/MM/yyyy HH:mm') : String(r[9] || '')
+      criado:        r[10] instanceof Date ? Utilities.formatDate(r[10], tz, 'dd/MM/yyyy HH:mm') : String(r[10] || '')
     });
   }
 
@@ -668,11 +674,11 @@ function getSolicitacaoDados(solicitacaoId) {
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === String(solicitacaoId).trim()) {
       return {
-        cargo:        String(data[i][4] || ''),
-        jornada:      String(data[i][5] || ''),
-        dataAdmissao: data[i][6] instanceof Date
-                      ? Utilities.formatDate(data[i][6], tz, 'dd/MM/yyyy')
-                      : String(data[i][6] || '')
+        cargo:        String(data[i][5] || ''),
+        jornada:      String(data[i][6] || ''),
+        dataAdmissao: data[i][7] instanceof Date
+                      ? Utilities.formatDate(data[i][7], tz, 'dd/MM/yyyy')
+                      : String(data[i][7] || '')
       };
     }
   }
@@ -684,7 +690,7 @@ function atualizarStatusSolicitacao(solicitacaoId, status) {
   var data = sh.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === String(solicitacaoId).trim()) {
-      sh.getRange(i + 1, 8).setValue(status);
+      sh.getRange(i + 1, 9).setValue(status);
       return;
     }
   }
@@ -833,6 +839,82 @@ function enviarEmailPendencias(dados, pendentes) {
              'Em caso de dúvidas: dp@brasas.com\n\n' +
              'Equipe BRASAS DP'
   });
+}
+
+function enviarEmailAdmissao(email, nome, unidade, link) {
+  if (!email) throw new Error('E-mail do candidato não informado.');
+  var primeiroNome = nome.split(' ')[0];
+  var html =
+    '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>' +
+    'body{margin:0;padding:0;background:#f0f2f5;font-family:Arial,Helvetica,sans-serif}' +
+    '.wrap{max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.10)}' +
+    '.hdr{background:linear-gradient(135deg,#1a237e 0%,#283593 100%);padding:32px 36px;color:#fff}' +
+    '.hdr h1{margin:0;font-size:22px;font-weight:700;letter-spacing:.2px}' +
+    '.hdr p{margin:6px 0 0;font-size:13px;opacity:.8}' +
+    '.body{padding:32px 36px}' +
+    '.greeting{font-size:16px;color:#222;margin-bottom:18px}' +
+    '.text{font-size:14px;color:#555;line-height:1.75;margin-bottom:24px}' +
+    '.info-box{border:1px solid #e8eaf6;border-left:4px solid #1a237e;border-radius:6px;padding:18px 20px;margin-bottom:24px;background:#f8f9fe}' +
+    '.info-box h3{font-size:13px;font-weight:700;color:#1a237e;margin:0 0 12px}' +
+    '.info-row{font-size:13px;color:#444;margin-bottom:6px}' +
+    '.info-row span{font-weight:700;color:#1a237e}' +
+    '.warn-box{background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:#5d4037;line-height:1.6}' +
+    '.btn-wrap{text-align:center;margin:28px 0}' +
+    '.btn{display:inline-block;background:#1a237e;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:.3px}' +
+    '.link-texto{font-size:12px;color:#888;margin-top:20px;word-break:break-all;font-family:monospace}' +
+    '.ftr{padding:20px 36px;font-size:12px;color:#aaa;border-top:1px solid #f0f0f0;line-height:1.7}' +
+    '.ftr a{color:#1a237e;text-decoration:none}' +
+    '</style></head><body>' +
+    '<div class="wrap">' +
+    '<div class="hdr"><h1>BRASAS English Course</h1><p>Formulário de Pré-Admissão</p></div>' +
+    '<div class="body">' +
+    '<p class="greeting">Olá, <strong>' + nome + '</strong>.</p>' +
+    '<p class="text">O <strong>Departamento Pessoal</strong> da <strong>BRASAS English Course</strong> encaminhou este formulário de pré-admissão para você preencher. Por favor, acesse o link abaixo, preencha seus dados e envie os documentos solicitados para dar continuidade ao processo.</p>' +
+    '<div class="warn-box">⚠️ <strong>Atenção — link único e intransferível</strong><br>' +
+    'Este link foi gerado exclusivamente para você e está vinculado ao seu processo de admissão. Não o compartilhe com outras pessoas. Após o envio completo dos documentos, o acesso será encerrado automaticamente.</div>' +
+    '<div class="btn-wrap"><a href="' + link + '" class="btn">Preencher formulário →</a></div>' +
+    '<p class="link-texto">Se o botão não funcionar, copie e cole o endereço abaixo no seu navegador:<br>' + link + '</p>' +
+    '</div>' +
+    '<div class="ftr">Dúvidas? Entre em contato com o DP: <a href="mailto:dp@brasas.com">dp@brasas.com</a><br>Este é um e-mail automático do sistema de admissão da BRASAS English Course.</div>' +
+    '</div></body></html>';
+
+  MailApp.sendEmail({
+    to:       email,
+    subject:  'BRASAS – Formulário de pré-admissão | ' + primeiroNome,
+    htmlBody: html,
+    body:     'Olá, ' + nome + '.\n\n' +
+              'O Departamento Pessoal da BRASAS English Course encaminhou este formulário de pré-admissão para você preencher.\n\n' +
+              'Acesse o link abaixo para preencher seus dados e enviar os documentos:\n' + link + '\n\n' +
+              'ATENÇÃO: Este link é único e intransferível. Não o compartilhe com outras pessoas.\n\n' +
+              'Dúvidas? Entre em contato pelo e-mail dp@brasas.com\n\nBRASAS English Course'
+  });
+  return { ok: true };
+}
+
+function deletarEnvio(token) {
+  var sh   = getEnviosSheet();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(token).trim()) {
+      sh.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { ok: false, erro: 'Registro não encontrado.' };
+}
+
+function deletarSolicitacao(id) {
+  var sh   = getSolicitacoesSheet();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(id).trim()) {
+      sh.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { ok: false, erro: 'Solicitação não encontrada.' };
 }
 
 // ── Drive ─────────────────────────────────────────────────────────────────────
@@ -1167,6 +1249,11 @@ function criarPdf(dados, pasta, solDados) {
   _fld(b, 'CPF', dados.cpf);
   _fld(b, 'Data de Nascimento', dados.dataNascimento);
   _fld(b, 'Telefone', dados.telefone);
+  if (dados.cepResidencia) {
+    _fld(b, 'CEP', dados.cepResidencia);
+    _fld(b, 'Endereço', dados.ruaNumeroResidencia);
+    _fld(b, 'Bairro', dados.bairroResidencia);
+  }
   _fld(b, 'Unidade', dados.nomeUnidade || dados.unidade);
 
   _sec(b, '2. DADOS DO CARGO');
@@ -1176,6 +1263,10 @@ function criarPdf(dados, pasta, solDados) {
 
   _sec(b, '3. DADOS BANCÁRIOS');
   _fld(b, 'Possui conta no Itaú', dados.contaItau);
+  if (dados.contaItau === 'Sim') {
+    _fld(b, 'Agência', dados.agenciaBanco);
+    _fld(b, 'Conta', dados.contaBanco);
+  }
 
   _sec(b, '4. VALE TRANSPORTE');
   _fld(b, 'Necessita de Vale Transporte', dados.valeTransporte);
