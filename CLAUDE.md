@@ -117,24 +117,28 @@ O DP acessa a planilha criada por `inicializar()` e preenche uma linha por candi
 
 ### Dados Pessoais
 - E-mail, Nome Completo, CPF (com validação), Data de Nascimento, Telefone
+- **Endereço de residência**: CEP (busca automática via ViaCEP), Rua e número, Bairro — sempre obrigatórios
 
 ### Unidade
-- Dropdown com 30 unidades. Pré-preenchido e travado pelo token. O sistema registra a razão social correspondente.
+- Quando acessado via token: exibe apenas o nome da unidade como texto estático (sem dropdown). Quando sem token: dropdown com 30 unidades. O sistema registra a razão social correspondente.
 
 ### Dados Bancários
 - Possui conta no Itaú? (Sim/Não)
+- Se Sim: **Agência** e **Conta (com dígito)** — campos obrigatórios exibidos condicionalmente
 
 ### Vale Transporte
 - Necessita de Vale Transporte? (Sim/Não)
-- Se Sim: Bilhete Único/JAÉ, CEP (com busca automática via ViaCEP), Rua e número, Bairro, Modal de transporte, Quantidade de conduções por dia
+- Se Sim: Bilhete Único/JAÉ, Modal de transporte, Quantidade de conduções por dia
+- **Endereço de partida**: por padrão usa o mesmo endereço de residência (checkbox "Usar o mesmo endereço"); se desmarcado, exibe campos separados de CEP/Rua/Bairro com busca ViaCEP
 
 ### Documentos (upload)
-14 documentos com upload múltiplo, pré-visualização individual e **detecção automática de qualidade** (borrão, resolução mínima, tamanho máximo 10 MB). Alguns obrigatórios, outros opcionais:
+15 documentos com upload múltiplo, pré-visualização individual e **detecção automática de qualidade** (borrão, resolução mínima, tamanho máximo 10 MB). Alguns obrigatórios, outros opcionais:
 - Foto 3×4, Atestado Médico Admissional, Carteira de Identidade, CPF, Título de Eleitor
 - PIS/PASEP **(somente arquivo)**, Certificado de Reservista **(somente arquivo, opcional)**
 - Declaração de Escolaridade, Certidão de Casamento (opcional), Carteira de Trabalho
 - Certidão de Nascimento dos filhos < 14 anos (opcional), Cartão de Vacinação < 7 anos (opcional)
 - Comprovante Escolar 7–14 anos (opcional), Comprovante de Residência
+- **Antecedentes Criminais** — exibe link de emissão gratuita: `https://www.gov.br/pt-br/servicos/emitir-certidao-de-antecedentes-criminais`
 
 O candidato pode marcar "Enviarei depois" em documentos opcionais e completar usando o mesmo link posteriormente.
 
@@ -202,6 +206,68 @@ Unidades sem e-mail configurado no momento: Editora, EC, Grajaú, Métodos (agua
 
 ---
 
+## Formulário do Diretor (`Diretor.html`)
+
+O diretor preenche para solicitar a admissão de um candidato. Campos:
+- **Unidade** (dropdown populado via `listarUnidades()`)
+- **Nome Completo** do candidato
+- **E-mail** do candidato — usado para envio do link de pré-admissão
+- **CPF** do candidato (com validação)
+- **Cargo** (dropdown: Secretaria, ASG, Porteiro, Aprendiz, Agente de Apoio)
+- **Jornada de Trabalho**
+- **Data de Admissão** (mínimo 2 dias úteis a partir de hoje)
+
+O e-mail é salvo na aba **Solicitações** da planilha (coluna "E-mail") e propagado para o registro do token gerado (coluna "Email Candidato" na aba Tokens), permitindo envio do link diretamente pelo painel DP.
+
+---
+
+## Painel DP — funcionalidades (`Admin.html`)
+
+### Solicitações dos Diretores
+- Tabela com: Candidato, E-mail, Unidade, Cargo, Data Admissão, Solicitado em, Status, Ações
+- **Gerar link**: cria token e associa à solicitação
+- **Copiar link**: após gerado
+- **✉ Enviar e-mail**: envia o link ao candidato via `enviarEmailAdmissao()` (disponível quando e-mail preenchido e link gerado)
+- **✕ Excluir**: remove o registro da aba Solicitações (via `deletarSolicitacao()`)
+
+### Links Gerados (avulsos)
+- Formulário com: Nome, E-mail do candidato, Unidade
+- **✉ Enviar**: botão na tabela para tokens com e-mail e ainda não usados
+- **✕ Excluir**: remove o registro (via `deletarToken()`)
+
+### Formulários Recebidos
+- **✕ Excluir**: remove registro da aba Envios (pasta no Drive não é afetada, via `deletarEnvio()`)
+
+### Largura do painel
+- Container expandido para `max-width: 1400px`
+
+---
+
+## E-mail de envio do link (`enviarEmailAdmissao`)
+
+Função em `Code.gs`. Template HTML com:
+- Cabeçalho azul BRASAS
+- Saudação com nome do candidato
+- Texto explicativo
+- **Aviso destacado**: link único e intransferível
+- Botão azul "Preencher formulário →"
+- Link em texto simples como fallback
+- Assunto: `BRASAS – Formulário de pré-admissão | [Primeiro nome]`
+
+---
+
+## Estrutura das planilhas
+
+### Aba Tokens (8+1 colunas)
+`ID/Token | Candidato | Unidade | Link | Status | Atualizado em | Criado em | ID Solicitação | Email Candidato`
+
+### Aba Solicitações (11 colunas)
+`ID | Unidade | Nome | E-mail | CPF | Cargo | Jornada | Data Admissão | Status | Token | Criado em`
+
+> **Atenção:** colunas novas (E-mail em Solicitações, Email Candidato em Tokens) só são criadas automaticamente em planilhas novas. Em planilhas existentes, adicionar manualmente antes de reimplantar.
+
+---
+
 ## Geração de contrato (modal no painel DP)
 
 O DP pode gerar o contrato de trabalho diretamente do painel, abrindo o modal em "Formulários Recebidos":
@@ -257,6 +323,11 @@ Quando o candidato enviou documentos parciais na primeira vez, o link original (
 - Modal de contrato: botão renomeado de "Gerar e enviar para assinatura" → **"📄 Gerar Contrato"** (assinatura é assíncrona / pode não estar disponível no plano)
 - Falha na eSignature API exibe mensagem informativa com link para o arquivo no Drive — **não interrompe o fluxo**
 - Docs opcionais sem arquivo no modo complemento são **silenciosamente ignorados** — apenas obrigatórios geram pendência
+- Unidade no formulário do candidato: quando pré-preenchida por token, exibe texto estático em vez de select desabilitado
+- Endereço de residência movido para Dados Pessoais (sempre obrigatório); VT usa o mesmo endereço por padrão com opção de informar um diferente
+- Conta Itaú: quando "Sim", exibe campos de Agência e Conta (com dígito), obrigatórios
+- Antecedentes Criminais: exibe instrução com link direto para emissão gratuita no Gov.br
+- E-mail do template de envio: seção "Detalhes do acesso" removida (informação redundante)
 
 ---
 
