@@ -12,9 +12,9 @@ O acesso ao formulário é controlado por **token único por URL**: o DP gera um
 
 | Arquivo | Descrição |
 |---|---|
-| `Code.gs` | Script servidor (Google Apps Script). Roteamento, validação de token, processamento do formulário, criação de pasta/PDF no Drive. |
+| `Code.gs` | Script servidor (Google Apps Script). Roteamento, validação de token, processamento do formulário, criação de pasta/PDF no Drive, todos os envios de e-mail. |
 | `Index.html` | Formulário HTML completo com CSS e JavaScript embutidos. Servido como Web App via `HtmlService`. |
-| `Admin.html` | Painel do DP: geração de links avulsos, lista de tokens (com filtro e busca), solicitações dos diretores e formulários recebidos. Usa sintaxe de template GAS (`<?= ?>`). |
+| `Admin.html` | Painel do DP: geração de links avulsos, lista de tokens (com filtro e busca), solicitações dos diretores, formulários recebidos e contratos. Usa sintaxe de template GAS (`<?= ?>`). |
 | `Diretor.html` | Formulário preenchido pelo diretor para solicitar admissão de um candidato. |
 
 ---
@@ -56,6 +56,7 @@ Pasta pai/
   BOTAFOGO/              ← pasta da unidade (maiúsculo, criada automaticamente se não existir)
     JOÃO SILVA/          ← pasta do funcionário (maiúsculo)
       FORMULARIO PRE-ADMISSAO - JOÃO SILVA.pdf
+      CARTA_ABERTURA_CONTA_JOAO_SILVA.pdf   ← gerado se candidato não tem conta Itaú
       RG_documento.JPG
       CPF_documento.PDF
       ...
@@ -101,13 +102,13 @@ O DP acessa a planilha criada por `inicializar()` e preenche uma linha por candi
 
 ### Fluxo do candidato
 1. Recebe o link por e-mail ou WhatsApp
-2. Abre → formulário com unidade pré-preenchida e travada
+2. Abre → formulário com unidade pré-preenchida, travada, e e-mail do candidato já preenchido (vindo da solicitação do diretor)
 3. Preenche e envia os documentos
 4. Se deixar documentos para depois: recebe e-mail com o mesmo link para completar
 5. Link é invalidado quando todos os documentos forem enviados; pasta mantida no Drive
 
 ### Telas de erro
-- Sem token → "Acesso inválido. Solicite um link ao DP."
+- Sem token → "Acesso inválido. Solicite um link personalizado ao setor de DP."
 - Token já usado → "Este link já foi utilizado. Entre em contato com dp@brasas.com."
 - Token inválido → "Link inválido. Entre em contato com dp@brasas.com."
 
@@ -116,15 +117,22 @@ O DP acessa a planilha criada por `inicializar()` e preenche uma linha por candi
 ## Campos do formulário
 
 ### Dados Pessoais
-- E-mail, Nome Completo, CPF (com validação), Data de Nascimento, Telefone
-- **Endereço de residência**: CEP (busca automática via ViaCEP), Rua e número, Bairro — sempre obrigatórios
+- **E-mail** — pré-preenchido automaticamente com o e-mail da solicitação do diretor (quando disponível)
+- Nome Completo, CPF (com validação), Data de Nascimento, Telefone
+- **Endereço de residência** (sempre obrigatório):
+  - CEP (busca automática via ViaCEP → preenche Rua e Bairro)
+  - **Rua** (campo separado, preenchido pelo ViaCEP)
+  - **Número e complemento** (campo separado, digitado pelo candidato)
+  - Bairro
+  - Os dois campos de endereço são combinados em `ruaNumeroResidencia` antes do envio ao servidor
 
 ### Unidade
 - Quando acessado via token: exibe apenas o nome da unidade como texto estático (sem dropdown). Quando sem token: dropdown com 30 unidades. O sistema registra a razão social correspondente.
 
 ### Dados Bancários
 - Possui conta no Itaú? (Sim/Não)
-- Se Sim: **Agência** e **Conta (com dígito)** — campos obrigatórios exibidos condicionalmente
+- Se **Sim**: **Agência** e **Conta (com dígito)** — campos obrigatórios exibidos condicionalmente
+- Se **Não**: exibe aviso azul informando que o candidato receberá uma **carta de abertura de conta** por e-mail. A carta é gerada automaticamente em PDF (template Google Docs) e enviada como anexo ao finalizar o formulário
 
 ### Vale Transporte
 - Necessita de Vale Transporte? (Sim/Não)
@@ -138,9 +146,21 @@ O DP acessa a planilha criada por `inicializar()` e preenche uma linha por candi
 - Declaração de Escolaridade, Certidão de Casamento (opcional), Carteira de Trabalho
 - Certidão de Nascimento dos filhos < 14 anos (opcional), Cartão de Vacinação < 7 anos (opcional)
 - Comprovante Escolar 7–14 anos (opcional), Comprovante de Residência
-- **Antecedentes Criminais** — exibe link de emissão gratuita: `https://www.gov.br/pt-br/servicos/emitir-certidao-de-antecedentes-criminais`
+- **Antecedentes Criminais** — exibe instrução com link de emissão gratuita: `https://www.gov.br/pt-br/servicos/emitir-certidao-de-antecedentes-criminais`
 
-O candidato pode marcar "Enviarei depois" em documentos opcionais e completar usando o mesmo link posteriormente.
+O candidato pode marcar "Não tenho agora, enviarei depois" em documentos opcionais e completar usando o mesmo link posteriormente.
+
+### CTPS (Número e Série)
+- Campo de texto obrigatório exibido **dentro da seção de Carteira de Trabalho** (`ctpsInput: true` no objeto DOCS)
+- Se o candidato marcar "Enviarei depois" para a Carteira de Trabalho, a validação do CTPS é automaticamente ignorada naquele envio
+- No retorno (modo complemento), o CTPS aparece junto com o documento e é obrigatório
+- O número é enviado ao servidor e salvo na coluna CTPS da aba Envios; em modo complemento, `completarDocumentos` recebe e salva o valor atualizado
+
+### Tela de sucesso
+- Documentos separados em **Obrigatórios** e **Opcionais**
+- Cada item exibe ✓ (verde) se enviado ou ● + badge vermelho **"Não enviado"** se pendente
+- Se **todos os obrigatórios foram enviados**: exibe mensagem verde "Todos os documentos obrigatórios foram recebidos com sucesso. O Departamento Pessoal irá analisar as informações e entrará em contato em breve."
+- Se há pendências: orienta o candidato a retornar pelo mesmo link
 
 ---
 
@@ -200,9 +220,9 @@ Para **adicionar uma unidade**: editar apenas o objeto `UNIDADES` e o `EMAILS_DI
 
 Configurado no objeto `EMAILS_DIRETORES` em `Code.gs`. Usado para:
 1. Compartilhar a pasta do Drive automaticamente ao criar a pasta da unidade
-2. *(futuro)* Enviar e-mail de notificação ao diretor quando formulário for recebido
+2. Enviar e-mail de notificação (`enviarEmailDiretor`) quando o candidato submete o formulário
 
-Unidades sem e-mail configurado no momento: Editora, EC, Grajaú, Métodos (aguardando fornecimento).
+Unidades sem e-mail configurado: Editora, EC, Grajaú, Métodos (aguardando fornecimento). O DP (`dp@brasas.com`) sempre recebe a notificação mesmo nestes casos.
 
 ---
 
@@ -211,20 +231,24 @@ Unidades sem e-mail configurado no momento: Editora, EC, Grajaú, Métodos (agua
 O diretor preenche para solicitar a admissão de um candidato. Campos:
 - **Unidade** (dropdown populado via `listarUnidades()`)
 - **Nome Completo** do candidato
-- **E-mail** do candidato — usado para envio do link de pré-admissão
+- **E-mail** do candidato — usado para envio do link de pré-admissão e pré-preenchimento do formulário
 - **CPF** do candidato (com validação)
 - **Cargo** (dropdown: Secretaria, ASG, Porteiro, Aprendiz, Agente de Apoio)
-- **Jornada de Trabalho**
+- **Jornada de Trabalho** — campos estruturados:
+  - Horário Seg–Sex: pickers de hora entrada/saída
+  - Checkbox "Trabalha aos sábados" → exibe pickers de hora entrada/saída para sábado
+  - Campo de observação opcional
+  - Gera string formatada: `"Seg–Sex, 08h00 às 17h00 / Sáb, 08h00 às 12h00 (obs)"`
 - **Data de Admissão** (mínimo 2 dias úteis a partir de hoje)
 
-O e-mail é salvo na aba **Solicitações** da planilha (coluna "E-mail") e propagado para o registro do token gerado (coluna "Email Candidato" na aba Tokens), permitindo envio do link diretamente pelo painel DP.
+O e-mail é salvo na aba **Solicitações** da planilha e propagado para o registro do token gerado (coluna "Email Candidato" na aba Tokens), pré-preenchendo o campo e-mail no formulário do candidato.
 
 ---
 
 ## Painel DP — funcionalidades (`Admin.html`)
 
 ### Solicitações dos Diretores
-- Tabela com: Candidato, E-mail, Unidade, Cargo, Data Admissão, Solicitado em, Status, Ações
+- Tabela com: **Candidato, E-mail, CPF, Unidade, Cargo, Jornada, Data Admissão, Solicitado em, Status, Ação**
 - **Gerar link**: cria token e associa à solicitação
 - **Copiar link**: após gerado
 - **✉ Enviar e-mail**: envia o link ao candidato via `enviarEmailAdmissao()` (disponível quando e-mail preenchido e link gerado)
@@ -237,48 +261,76 @@ O e-mail é salvo na aba **Solicitações** da planilha (coluna "E-mail") e prop
 
 ### Formulários Recebidos
 - **✕ Excluir**: remove registro da aba Envios (pasta no Drive não é afetada, via `deletarEnvio()`)
+- **📄 Gerar**: abre modal de geração de contrato (disponível apenas quando todos os docs foram recebidos)
+
+### Contratos
+- Tabela com: Candidato, Unidade, Gerado em, Status ("Gerado"), link "Ver contrato"
+- Sem integração com API de assinatura digital (removida); assinatura tratada externamente
 
 ### Largura do painel
 - Container expandido para `max-width: 1400px`
 
 ---
 
-## E-mail de envio do link (`enviarEmailAdmissao`)
+## E-mails — visão geral
 
-Função em `Code.gs`. Template HTML com:
-- Cabeçalho azul BRASAS
-- Saudação com nome do candidato
-- Texto explicativo
-- **Aviso destacado**: link único e intransferível
-- Botão azul "Preencher formulário →"
-- Link em texto simples como fallback
+Todos os e-mails saem com `name: 'BRASAS Departamento Pessoal'` e `replyTo: 'dp@brasas.com'`. O proprietário do GAS (adriane@brasas.com) aparece como remetente técnico, mas o nome exibido e o reply-to são do DP.
+
+### `enviarEmailAdmissao` — link de pré-admissão ao candidato
 - Assunto: `BRASAS – Formulário de pré-admissão | [Primeiro nome]`
+- Botão azul "Preencher formulário →", aviso de link único e intransferível
+
+### `enviarEmailPendencias` — documentos pendentes ao candidato
+- Disparado automaticamente quando o candidato envia documentos mas ficam pendências
+- Assunto: `BRASAS – Documentos pendentes | [Primeiro nome]`
+- HTML com lista separada: **Obrigatórios** (vermelho) e **Opcionais** (laranja), botão "Completar envio →"
+
+### `enviarEmailDiretor` — notificação ao diretor quando formulário é enviado
+- Disparado em `processarFormulario` e `completarDocumentos`
+- Destinatários: todos os e-mails de `EMAILS_DIRETORES[unidade]` + `dp@brasas.com`
+- Assunto: `BRASAS – Pré-admissão completa | ...` ou `BRASAS – Formulário recebido | ...`
+- HTML com: badge de status (completo/pendente), lista de docs enviados (✓ verde), docs pendentes separados em obrigatórios (vermelho) e opcionais (laranja), botão "Abrir pasta no Drive"
+
+### `gerarCartaAberturaConta` — carta de abertura de conta Itaú
+- Disparado em `processarFormulario` quando `dados.contaItau === 'Não'`
+- Copia o template Google Docs (`CARTA_CONTA_TEMPLATE_ID`), substitui variáveis, exporta PDF
+- Salva o PDF na pasta do candidato no Drive
+- Envia o PDF por e-mail ao candidato como anexo
+- Template: `1_0UhlvI9uzrOFh8pFGeua1u7Lnw5NKO6SE3z7eym5EM`
 
 ---
 
 ## Estrutura das planilhas
 
-### Aba Tokens (8+1 colunas)
+### Aba Tokens (9 colunas)
 `ID/Token | Candidato | Unidade | Link | Status | Atualizado em | Criado em | ID Solicitação | Email Candidato`
 
 ### Aba Solicitações (11 colunas)
 `ID | Unidade | Nome | E-mail | CPF | Cargo | Jornada | Data Admissão | Status | Token | Criado em`
 
-> **Atenção:** colunas novas (E-mail em Solicitações, Email Candidato em Tokens) só são criadas automaticamente em planilhas novas. Em planilhas existentes, adicionar manualmente antes de reimplantar.
+### Aba Envios (9 colunas)
+`Token | Candidato | Unidade | Email | Data Envio | Documentos Enviados | Documentos Pendentes | Pasta Drive | CTPS`
+
+### Aba Assinaturas (9 colunas)
+`Token | Candidato | Email | Unidade | (vazio) | ContratoId | Status | Gerado em | Assinado em`
+
+> **Atenção:** colunas adicionadas recentemente (Email Candidato em Tokens, CTPS em Envios) são criadas automaticamente apenas em planilhas novas. Em planilhas existentes, adicionar manualmente antes de reimplantar.
 
 ---
 
 ## Geração de contrato (modal no painel DP)
 
-O DP pode gerar o contrato de trabalho diretamente do painel, abrindo o modal em "Formulários Recebidos":
+O DP pode gerar o contrato de trabalho diretamente do painel, abrindo o modal em "Formulários Recebidos" (disponível apenas quando todos os documentos foram recebidos):
 
-- **Campos editáveis**: Cargo, Jornada de trabalho, CTPS, Salário (número e por extenso)
-- Cargo e Jornada são pré-preenchidos com os valores da solicitação do diretor (se houver), mas o DP pode editar antes de gerar
+- **Campos editáveis**: Cargo, Jornada de trabalho, CTPS, Salário (R$), Salário por extenso
+- Cargo e Jornada são pré-preenchidos com os valores da solicitação do diretor (se houver)
+- CTPS é pré-preenchido com o número informado pelo candidato no formulário
+- **Salário por extenso preenchido automaticamente** ao digitar o valor numérico (ex: `1.500,00` → `mil e quinhentos reais`)
 - O contrato é criado na pasta do candidato no Drive (cópia do template preenchida com os dados)
-- Se a Google eSignature API não estiver disponível no plano, o botão exibe: _"Assinatura digital não configurada — o contrato está no Drive aguardando envio manual."_ com link direto ao arquivo
+- Após geração: status "Gerado" na aba Assinaturas; assinatura tratada externamente pelo DP
 
 ### Função no servidor
-`gerarEEnviarContrato(token, ctps, salario, salarioExtenso, cargo, jornada)` — os parâmetros `cargo` e `jornada` sobrepõem os valores vindos da solicitação do diretor (`cargo || dadosBase.cargo`).
+`gerarEEnviarContrato(token, ctps, salario, salarioExtenso, cargo, jornada)` — os parâmetros `cargo` e `jornada` sobrepõem os valores vindos da solicitação do diretor.
 
 ---
 
@@ -289,11 +341,13 @@ Quando o candidato enviou documentos parciais na primeira vez, o link original (
 1. `doGet` detecta `td.incompleto = true` e renderiza `Index.html` em modo complemento
 2. `_STATUS = 'incompleto'`, `_PENDENTES` = lista de rótulos dos docs ainda faltantes
 3. Somente os documentos pendentes são exibidos para upload
-4. Ao enviar, `completarDocumentos(token, docs)` é chamado no servidor:
+4. Ao enviar, `completarDocumentos(token, docs, ctps)` é chamado no servidor:
    - Adiciona arquivos enviados na pasta do Drive já existente
+   - Salva o CTPS se fornecido (para o caso em que foi omitido no primeiro envio)
    - Docs opcionais sem arquivo são **ignorados** (não marcados como pendência)
    - Se ainda restarem pendentes obrigatórios: token permanece INCOMPLETO, link de retorno é exibido
    - Se tudo completo: token é marcado USADO
+   - Dispara `enviarEmailDiretor` em ambos os casos
 
 ### Bugs corrigidos neste fluxo
 - `var filesMap = {}` estava declarado **após** o `forEach` de renderização — ficava `undefined` por hoisting e quebrava o submit. Movido para antes do `forEach`.
@@ -308,8 +362,6 @@ Quando o candidato enviou documentos parciais na primeira vez, o link original (
 - [ ] **Aplicar alteração no Hub** — modificar `doGet` do Hub BRASAS Analytics para suportar `?next=URL` e redirecionar com o token de sessão após autenticação. Código fornecido, falta aplicar e reimplantar.
 - [ ] **Reimplantar ambos os projetos** no GAS após as alterações
 - [ ] **E-mails faltantes de diretores** — Editora, EC, Grajaú, Métodos (aguardando fornecimento)
-- [ ] **Notificação ao diretor e ao DP por e-mail** quando formulário for recebido (estrutura pronta em `EMAILS_DIRETORES`, falta implementar o envio)
-- [ ] **CNPJ e endereço faltantes** em `UNIDADES_DADOS` no `Code.gs`: BRASAS On Demand e Vila Olímpia (aguardando fornecimento)
 
 ---
 
@@ -320,14 +372,17 @@ Quando o candidato enviou documentos parciais na primeira vez, o link original (
 - PIS/PASEP e Certificado de Reservista: **removida opção de inserir só o número** — apenas upload de arquivo aceito
 - Painel DP → Links gerados: adicionados **filtro por unidade** e **busca por nome** acima da tabela (filtragem client-side)
 - Avisos de qualidade de documento (borrão, resolução) são **informativos**, não bloqueantes — candidato pode enviar mesmo com aviso
-- Modal de contrato: botão renomeado de "Gerar e enviar para assinatura" → **"📄 Gerar Contrato"** (assinatura é assíncrona / pode não estar disponível no plano)
-- Falha na eSignature API exibe mensagem informativa com link para o arquivo no Drive — **não interrompe o fluxo**
+- Modal de contrato: sem integração eSignature — **"📄 Gerar Contrato"** salva no Drive; assinatura tratada externamente
 - Docs opcionais sem arquivo no modo complemento são **silenciosamente ignorados** — apenas obrigatórios geram pendência
 - Unidade no formulário do candidato: quando pré-preenchida por token, exibe texto estático em vez de select desabilitado
-- Endereço de residência movido para Dados Pessoais (sempre obrigatório); VT usa o mesmo endereço por padrão com opção de informar um diferente
-- Conta Itaú: quando "Sim", exibe campos de Agência e Conta (com dígito), obrigatórios
-- Antecedentes Criminais: exibe instrução com link direto para emissão gratuita no Gov.br
-- E-mail do template de envio: seção "Detalhes do acesso" removida (informação redundante)
+- Endereço de residência separado em **Rua** + **Número e complemento** (dois campos); combinados antes do envio
+- Conta Itaú "Não": aviso azul imediato + carta de abertura de conta gerada e enviada por e-mail ao candidato
+- CTPS: campo junto à Carteira de Trabalho; pode ser marcado "Enviarei depois" sem bloquear envio; obrigatório no complemento
+- Tela de sucesso: documentos separados em obrigatórios/opcionais; badge "Não enviado" nos pendentes; mensagem verde quando tudo enviado
+- E-mail pré-preenchido no formulário do candidato com o e-mail da solicitação do diretor
+- Tabela de Solicitações no painel DP: inclui CPF e Jornada de todas as solicitações dos diretores
+- Salário por extenso no modal de contrato: preenchido automaticamente ao digitar o valor numérico
+- Diretores recebem e-mail de notificação a cada envio/complemento, com docs enviados, pendentes (obrigatórios vs opcionais) e link do Drive
 
 ---
 

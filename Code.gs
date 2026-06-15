@@ -5,6 +5,7 @@ const HUB_URL           = 'https://script.google.com/a/macros/brasas.com/s/AKfyc
 // Preencher após criar os templates de contrato no Google Drive (ver instruções no CLAUDE.md):
 const CONTRATO_TEMPLATE_DOCENTE_ID        = '1B4-WoJQw0mcYsPhQAa9xEAgTvzZxgNMtK1rcJPvzAak';
 const CONTRATO_TEMPLATE_ADMINISTRATIVO_ID = '1lDkmuzGwW2FcAFbleoiy7qq0Y-fmihmfglb_7GsxcaE';
+const CARTA_CONTA_TEMPLATE_ID             = '1_0UhlvI9uzrOFh8pFGeua1u7Lnw5NKO6SE3z7eym5EM';
 
 const UNIDADES = {
   'Bangu':              'BG Assessoria Linguística Ltda',
@@ -70,36 +71,36 @@ const EMAILS_DIRETORES = {
 
 // CNPJs e endereços por unidade — preencher com os dados reais antes de gerar contratos
 const UNIDADES_DADOS = {
-  'Bangu':              { cnpj: '55.330.784/0001-08', endereco: 'Rua Agrícola, 318, Bangu, Rio de Janeiro - RJ, 21810-090' },
-  'Botafogo':           { cnpj: '07.643.896/0001-76', endereco: 'Rua Voluntários da Pátria, 147, Botafogo, Rio de Janeiro - RJ, 22270-000' },
-  'BRASAS On Demand':   { cnpj: '', endereco: '' },
-  'Cachambi':           { cnpj: '17.211.797/0001-79', endereco: 'Avenida Dom Hélder Câmara, 5644, Lojas B e C, Pilares, Rio de Janeiro - RJ, 20771-004' },
-  'Campo Grande':       { cnpj: '23.149.208/0001-72', endereco: 'Avenida Cesário de Melo, 2400, Loja 107, Campo Grande, Rio de Janeiro - RJ, 23052-100' },
-  'Copacabana':         { cnpj: '30.507.545/0001-50', endereco: 'Rua Pompeu Loureiro, 41, Copacabana, Rio de Janeiro - RJ, 22061-000' },
-  'Caxias':             { cnpj: '07.657.195/0001-96', endereco: 'Rua Prof. José de Souza Herdy, 1165, Centro, Duque de Caxias - RJ, 25071-201' },
-  'Downtown':           { cnpj: '10.576.883/0001-36', endereco: 'Avenida das Américas, 500, Bloco 10, Loja 104, Barra da Tijuca, Rio de Janeiro - RJ, 22640-100' },
-  'Editora':            { cnpj: '42.163.550/0001-71', endereco: 'Avenida Cesário de Melo, 2400, Lojas 101 a 106, Campo Grande, Rio de Janeiro - RJ, 23052-102' },
-  'EC':                 { cnpj: '23.875.012/0001-65', endereco: 'Estrada Coronel Pedro Correia, 1427, Jacarepaguá, Rio de Janeiro - RJ, 22775-090' },
-  'Freguesia':          { cnpj: '33.579.506/0001-56', endereco: 'Estrada dos Três Rios, 200, 2º andar, Freguesia, Rio de Janeiro - RJ, 22755-000' },
-  'Grajaú':             { cnpj: '65.768.114/0001-21', endereco: 'Avenida Júlio Furtado, 81, Loja A, Grajaú, Rio de Janeiro - RJ, 20561-012' },
-  'Ilha do Governador': { cnpj: '07.644.726/0001-06', endereco: 'Rua Cambaúba, 205, Ilha do Governador, Rio de Janeiro - RJ, 21940-005' },
-  'Ipanema':            { cnpj: '07.826.615/0001-10', endereco: 'Rua Visconde de Pirajá, 330, Lojas 207, 208 e 209, Ipanema, Rio de Janeiro - RJ, 22410-000' },
-  'Itaipu':             { cnpj: '07.659.358/0001-70', endereco: 'Rua Heitor Collet, 88, Itaipu, Niterói - RJ, 24342-050' },
-  'Laranjeiras':        { cnpj: '14.805.058/0001-17', endereco: 'Rua São Salvador, 49, Laranjeiras, Rio de Janeiro - RJ, 22231-130' },
-  'Méier':              { cnpj: '07.642.399/0001-53', endereco: 'Rua Vilela Tavares, 46, Méier, Rio de Janeiro - RJ, 20725-220' },
-  'Métodos':            { cnpj: '27.618.651/0001-04', endereco: 'Estrada Coronel Pedro Correia, 1427, Jacarepaguá, Rio de Janeiro - RJ, 22775-090' },
-  'Niterói':            { cnpj: '07.659.399/0001-66', endereco: 'Rua Lopes Trovão, 287, Icaraí, Niterói - RJ, 24220-070' },
-  'Nova Iguaçu':        { cnpj: '07.717.815/0001-35', endereco: 'Rua Coronel Alfredo Soares, 101, Nova Iguaçu - RJ, 26255-150' },
-  'Novo Leblon':        { cnpj: '32.102.956/0001-90', endereco: 'Avenida das Américas, 7607, Loja 323, Barra da Tijuca, Rio de Janeiro - RJ, 22793-081' },
-  'Parque Olímpico':    { cnpj: '28.535.846/0001-45', endereco: 'Estrada Coronel Pedro Correia, 1427, Jacarepaguá, Rio de Janeiro - RJ, 22775-090' },
-  'Pechincha':          { cnpj: '33.579.506/0002-37', endereco: 'Rua Retiro dos Artistas, 855, Lojas A, B e C, Bloco 1, Pechincha, Rio de Janeiro - RJ, 22770-102' },
-  'Península':          { cnpj: '63.339.978/0001-00', endereco: 'Avenida Flamboyants da Península, 855, Loja 203, Barra da Tijuca, Rio de Janeiro - RJ, 22776-070' },
-  'Recreio':            { cnpj: '21.470.581/0001-03', endereco: 'Avenida das Américas, 19019, Sala 399F, Recreio dos Bandeirantes, Rio de Janeiro - RJ, 22790-701' },
-  'Taquara':            { cnpj: '33.579.360/0001-49', endereco: 'Rua Apiacás, 23, Taquara, Rio de Janeiro - RJ, 22730-190' },
-  'Tijuca':             { cnpj: '07.642.417/0001-05', endereco: 'Rua Guapiara, 82, Tijuca, Rio de Janeiro - RJ, 20521-180' },
-  'Vila da Penha':      { cnpj: '07.642.688/0001-52', endereco: 'Avenida Meriti, 1125, Vila da Penha, Rio de Janeiro - RJ, 21211-007' },
-  'Vila Olímpia':       { cnpj: '', endereco: '' },
-  'Vila Valqueire':     { cnpj: '08.432.982/0001-00', endereco: 'Rua Luiz Beltrão, 160, Grupos 220/221, Vila Valqueire, Rio de Janeiro - RJ, 21321-230' }
+  'Bangu':              { cnpj: '55.330.784/0001-08', endereco: 'Rua Agrícola, 318, Bangu, Rio de Janeiro - RJ, 21810-090',                                                                       agencia: '9291', conta: '99111-6'  },
+  'Botafogo':           { cnpj: '07.643.896/0001-76', endereco: 'Rua Voluntários da Pátria, 147, Botafogo, Rio de Janeiro - RJ, 22270-000',                                                        agencia: '0389', conta: '75500-0'  },
+  'BRASAS On Demand':   { cnpj: '65.789.750/0001-30', endereco: 'Estrada Coronel Pedro Correia, 1427, Jacarepaguá, Rio de Janeiro - RJ, 22775-090',                                                agencia: '6140', conta: '98809-5'  },
+  'Cachambi':           { cnpj: '17.211.797/0001-79', endereco: 'Avenida Dom Hélder Câmara, 5644, Lojas B e C, Pilares, Rio de Janeiro - RJ, 20771-004',                                           agencia: '3071', conta: '24240-2'  },
+  'Campo Grande':       { cnpj: '23.149.208/0001-72', endereco: 'Avenida Cesário de Melo, 2400, Loja 107, Campo Grande, Rio de Janeiro - RJ, 23052-100',                                           agencia: '0283', conta: '93900-7'  },
+  'Copacabana':         { cnpj: '30.507.545/0001-50', endereco: 'Rua Pompeu Loureiro, 41, Copacabana, Rio de Janeiro - RJ, 22061-000',                                                             agencia: '1672', conta: '15308-5'  },
+  'Caxias':             { cnpj: '07.657.195/0001-96', endereco: 'Rua Prof. José de Souza Herdy, 1165, Centro, Duque de Caxias - RJ, 25071-201',                                                    agencia: '9167', conta: '47877-6'  },
+  'Downtown':           { cnpj: '10.576.883/0001-36', endereco: 'Avenida das Américas, 500, Bloco 10, Loja 104, Barra da Tijuca, Rio de Janeiro - RJ, 22640-100',                                  agencia: '0459', conta: '55779-9'  },
+  'EC':                 { cnpj: '23.875.012/0001-65', endereco: 'Estrada Coronel Pedro Correia, 1427, Jacarepaguá, Rio de Janeiro - RJ, 22775-090',                                                agencia: '0459', conta: '06445-7'  },
+  'Editora':            { cnpj: '42.163.550/0001-71', endereco: 'Avenida Cesário de Melo, 2400, Lojas 101 a 106, Campo Grande, Rio de Janeiro - RJ, 23052-102',                                    agencia: '0389', conta: '52170-9'  },
+  'Freguesia':          { cnpj: '33.579.506/0001-56', endereco: 'Estrada dos Três Rios, 200, 2º andar, Freguesia, Rio de Janeiro - RJ, 22755-000',                                                 agencia: '9291', conta: '28380-3'  },
+  'Grajaú':             { cnpj: '65.768.114/0001-21', endereco: 'Avenida Júlio Furtado, 81, Loja A, Grajaú, Rio de Janeiro - RJ, 20561-012',                                                       agencia: '0281', conta: '98810-5'  },
+  'Ilha do Governador': { cnpj: '07.644.726/0001-06', endereco: 'Rua Cambaúba, 205, Ilha do Governador, Rio de Janeiro - RJ, 21940-005',                                                           agencia: '0370', conta: '54843-0'  },
+  'Ipanema':            { cnpj: '07.826.615/0001-10', endereco: 'Rua Visconde de Pirajá, 330, Lojas 207, 208 e 209, Ipanema, Rio de Janeiro - RJ, 22410-000',                                      agencia: '0304', conta: '05200-4'  },
+  'Itaipu':             { cnpj: '07.659.358/0001-70', endereco: 'Rua Heitor Collet, 88, Itaipu, Niterói - RJ, 24342-050',                                                                          agencia: '1638', conta: '14248-7'  },
+  'Laranjeiras':        { cnpj: '14.805.058/0001-17', endereco: 'Rua São Salvador, 49, Laranjeiras, Rio de Janeiro - RJ, 22231-130',                                                               agencia: '5192', conta: '14558-8'  },
+  'Méier':              { cnpj: '07.642.399/0001-53', endereco: 'Rua Vilela Tavares, 46, Méier, Rio de Janeiro - RJ, 20725-220',                                                                    agencia: '6476', conta: '01590-1'  },
+  'Métodos':            { cnpj: '27.618.651/0001-04', endereco: 'Estrada Coronel Pedro Correia, 1427, Jacarepaguá, Rio de Janeiro - RJ, 22775-090',                                                agencia: '0389', conta: '52171-7'  },
+  'Niterói':            { cnpj: '07.659.399/0001-66', endereco: 'Rua Lopes Trovão, 287, Icaraí, Niterói - RJ, 24220-070',                                                                          agencia: '0720', conta: '61568-1'  },
+  'Nova Iguaçu':        { cnpj: '07.717.815/0001-35', endereco: 'Rua Coronel Alfredo Soares, 101, Nova Iguaçu - RJ, 26255-150',                                                                    agencia: '0201', conta: '30111-6'  },
+  'Novo Leblon':        { cnpj: '32.102.956/0001-90', endereco: 'Avenida das Américas, 7607, Loja 323, Barra da Tijuca, Rio de Janeiro - RJ, 22793-081',                                           agencia: '0389', conta: '52398-6'  },
+  'Parque Olímpico':    { cnpj: '28.535.846/0001-45', endereco: 'Estrada Coronel Pedro Correia, 1427, Jacarepaguá, Rio de Janeiro - RJ, 22775-090',                                                agencia: '3212', conta: '23356-7'  },
+  'Pechincha':          { cnpj: '33.579.506/0002-37', endereco: 'Rua Retiro dos Artistas, 855, Lojas A, B e C, Bloco 1, Pechincha, Rio de Janeiro - RJ, 22770-102',                                agencia: '9291', conta: '98801-3'  },
+  'Península':          { cnpj: '63.339.978/0001-00', endereco: 'Avenida Flamboyants da Península, 855, Loja 203, Barra da Tijuca, Rio de Janeiro - RJ, 22776-070',                                agencia: '3212', conta: '98537-2'  },
+  'Recreio':            { cnpj: '21.470.581/0001-03', endereco: 'Avenida das Américas, 19019, Sala 399F, Recreio dos Bandeirantes, Rio de Janeiro - RJ, 22790-701',                                agencia: '0459', conta: '03677-8'  },
+  'Taquara':            { cnpj: '33.579.360/0001-49', endereco: 'Rua Apiacás, 23, Taquara, Rio de Janeiro - RJ, 22730-190',                                                                        agencia: '0314', conta: '32683-6'  },
+  'Tijuca':             { cnpj: '07.642.417/0001-05', endereco: 'Rua Guapiara, 82, Tijuca, Rio de Janeiro - RJ, 20521-180',                                                                        agencia: '0281', conta: '78534-5'  },
+  'Vila da Penha':      { cnpj: '07.642.688/0001-52', endereco: 'Avenida Meriti, 1125, Vila da Penha, Rio de Janeiro - RJ, 21211-007',                                                             agencia: '3199', conta: '06445-6'  },
+  'Vila Olímpia':       { cnpj: '12.127.235/0001-28', endereco: 'Rua Caetano Velasco, 109, Vila Olímpia, São Paulo - SP, 02033-000',                                                               agencia: '0459', conta: '99209-5'  },
+  'Vila Valqueire':     { cnpj: '08.432.982/0001-00', endereco: 'Rua Luiz Beltrão, 160, Grupos 220/221, Vila Valqueire, Rio de Janeiro - RJ, 21321-230',                                           agencia: '5658', conta: '21982-8'  }
 };
 
 // ── Unidades ──────────────────────────────────────────────────────────────────
@@ -232,12 +233,13 @@ function doGet(e) {
   Logger.log('[doGet] pendentes=' + JSON.stringify(pendentes));
 
   var tmpl = HtmlService.createTemplateFromFile('Index');
-  tmpl.TOKEN        = td.token;
-  tmpl.UNIDADE_ID   = td.unidadeId;
-  tmpl.UNIDADE_NOME = td.unidadeNome;
-  tmpl.STATUS       = td.incompleto ? 'incompleto' : 'novo';
-  tmpl.CANDIDATO    = td.candidato || '';
-  tmpl.PENDENTES    = JSON.stringify(pendentes);
+  tmpl.TOKEN           = td.token;
+  tmpl.UNIDADE_ID      = td.unidadeId;
+  tmpl.UNIDADE_NOME    = td.unidadeNome;
+  tmpl.STATUS          = td.incompleto ? 'incompleto' : 'novo';
+  tmpl.CANDIDATO       = td.candidato || '';
+  tmpl.PENDENTES       = JSON.stringify(pendentes);
+  tmpl.EMAIL_CANDIDATO = td.emailCandidato || '';
 
   return tmpl.evaluate()
     .setTitle('Formulário de Pré-Admissão – BRASAS')
@@ -284,8 +286,20 @@ function processarFormulario(dados) {
     }
 
     criarPdf(dados, novaPasta, solDados);
+
+    if (dados.contaItau === 'Não') {
+      try { gerarCartaAberturaConta(dados, solDados, novaPasta); }
+      catch(cartaErr) { Logger.log('[carta conta] ' + cartaErr.toString()); }
+    }
+
     dados.pastaUrl = novaPasta.getUrl();
-    var pendentes = salvarEnvio(dados);
+    var resultado = salvarEnvio(dados);
+    var enviados  = resultado.enviados;
+    var pendentes = resultado.pendentes;
+
+    try {
+      enviarEmailDiretor(dados, enviados, pendentes);
+    } catch(e) { Logger.log('[email diretor] ' + e.toString()); }
 
     var emailEnviado = false;
     if (pendentes.length === 0) {
@@ -301,7 +315,7 @@ function processarFormulario(dados) {
       }
     }
 
-    return { sucesso: true, pendentes: pendentes, emailEnviado: emailEnviado, linkRetorno: PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') + '?token=' + dados.token };
+    return { sucesso: true, enviados: enviados, pendentes: pendentes, emailEnviado: emailEnviado, linkRetorno: PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') + '?token=' + dados.token };
   } catch (e) {
     Logger.log(e.toString());
     return { sucesso: false, erro: e.message };
@@ -312,7 +326,7 @@ function processarFormulario(dados) {
 
 // ── Complemento de documentos (retorno ao mesmo link) ────────────────────────
 
-function completarDocumentos(token, documentos) {
+function completarDocumentos(token, documentos, ctps) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -324,11 +338,13 @@ function completarDocumentos(token, documentos) {
       return { sucesso: false, erro: 'Link inválido ou processo já concluído.' };
     }
 
-    var enviosData = getEnviosSheet().getDataRange().getValues();
-    var pastaUrl   = '';
+    var enviosData        = getEnviosSheet().getDataRange().getValues();
+    var pastaUrl          = '';
+    var emailCandidatoCompl = '';
     for (var i = 1; i < enviosData.length; i++) {
       if (String(enviosData[i][0]).trim() === String(token).trim()) {
-        pastaUrl = String(enviosData[i][7] || '').trim();
+        pastaUrl            = String(enviosData[i][7] || '').trim();
+        emailCandidatoCompl = String(enviosData[i][3] || '').trim();
         Logger.log('[completarDocumentos] pastaUrl encontrada na linha ' + (i + 1) + ': ' + pastaUrl);
         break;
       }
@@ -369,18 +385,34 @@ function completarDocumentos(token, documentos) {
       marcarTokenUsado(token);
       if (td.solicitacaoId) atualizarStatusSolicitacao(td.solicitacaoId, 'Concluído');
       var webappUrl2 = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') || '';
-      return { sucesso: true, pendentes: [], linkRetorno: webappUrl2 + '?token=' + token };
+      return { sucesso: true, enviados: [], pendentes: [], linkRetorno: webappUrl2 + '?token=' + token };
     }
 
     atualizarEnvio(token, novosEnviados, novosPendentes);
+
+    if (ctps) {
+      var shE = getEnviosSheet();
+      var shED = shE.getDataRange().getValues();
+      for (var ci = 1; ci < shED.length; ci++) {
+        if (String(shED[ci][0]).trim() === String(token).trim()) {
+          shE.getRange(ci + 1, 9).setValue(ctps);
+          break;
+        }
+      }
+    }
 
     if (novosEnviados.length > 0 && novosPendentes.length === 0) {
       marcarTokenUsado(token);
       if (td.solicitacaoId) atualizarStatusSolicitacao(td.solicitacaoId, 'Concluído');
     }
 
+    try {
+      var dadosNotif = { nomeCompleto: td.candidato, nomeUnidade: td.unidadeNome, pastaUrl: pastaUrl, email: emailCandidatoCompl };
+      enviarEmailDiretor(dadosNotif, novosEnviados, novosPendentes);
+    } catch(e) { Logger.log('[email diretor compl] ' + e.toString()); }
+
     var webappUrl = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') || '';
-    return { sucesso: true, pendentes: novosPendentes, linkRetorno: webappUrl + '?token=' + token };
+    return { sucesso: true, enviados: novosEnviados, pendentes: novosPendentes, linkRetorno: webappUrl + '?token=' + token };
   } catch (e) {
     Logger.log('[completarDocumentos] EXCECAO: ' + e.toString() + '\n' + e.stack);
     return { sucesso: false, erro: e.message };
@@ -541,13 +573,14 @@ function validarToken(token) {
       var unidadeId   = UNIDADES[unidadeNome] || unidadeNome;
       var incompleto  = data[i][4] === 'INCOMPLETO';
       return {
-        valido:        true,
-        token:         token,
-        unidadeId:     unidadeId,
-        unidadeNome:   unidadeNome,
-        incompleto:    incompleto,
-        candidato:     String(data[i][1] || ''),
-        solicitacaoId: String(data[i][7] || '')
+        valido:         true,
+        token:          token,
+        unidadeId:      unidadeId,
+        unidadeNome:    unidadeNome,
+        incompleto:     incompleto,
+        candidato:      String(data[i][1] || ''),
+        solicitacaoId:  String(data[i][7] || ''),
+        emailCandidato: String(data[i][8] || '')
       };
     }
   }
@@ -587,14 +620,14 @@ function getSolicitacoesSheet() {
   var sh = ss.getSheetByName('Solicitações');
   if (!sh) {
     sh = ss.insertSheet('Solicitações');
-    sh.getRange(1, 1, 1, 11).setValues([[
-      'ID', 'Unidade', 'Nome', 'E-mail', 'CPF', 'Cargo', 'Jornada', 'Data Admissão', 'Status', 'Token', 'Criado em'
+    sh.getRange(1, 1, 1, 12).setValues([[
+      'ID', 'Unidade', 'Nome', 'E-mail', 'CPF', 'Cargo', 'Jornada', 'Data Admissão', 'Status', 'Token', 'Criado em', 'CTPS'
     ]]);
-    sh.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sh.getRange(1, 1, 1, 12).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
     sh.setColumnWidth(1, 130).setColumnWidth(2, 150).setColumnWidth(3, 210)
       .setColumnWidth(4, 200).setColumnWidth(5, 130).setColumnWidth(6, 130)
       .setColumnWidth(7, 200).setColumnWidth(8, 130).setColumnWidth(9, 120)
-      .setColumnWidth(10, 120).setColumnWidth(11, 150);
+      .setColumnWidth(10, 120).setColumnWidth(11, 150).setColumnWidth(12, 130);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -621,7 +654,8 @@ function processarSolicitacao(dados) {
       dataAdm,
       'Pendente',
       '',
-      new Date()
+      new Date(),
+      dados.ctps     || ''
     ]);
 
     return { sucesso: true, id: id };
@@ -704,13 +738,13 @@ function getEnviosSheet() {
   var sh = ss.getSheetByName('Envios');
   if (!sh) {
     sh = ss.insertSheet('Envios');
-    sh.getRange(1, 1, 1, 8).setValues([[
-      'Token', 'Candidato', 'Unidade', 'Email', 'Data Envio', 'Documentos Enviados', 'Documentos Pendentes', 'Pasta Drive'
+    sh.getRange(1, 1, 1, 9).setValues([[
+      'Token', 'Candidato', 'Unidade', 'Email', 'Data Envio', 'Documentos Enviados', 'Documentos Pendentes', 'Pasta Drive', 'CTPS'
     ]]);
-    sh.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
+    sh.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#1a237e').setFontColor('#ffffff');
     sh.setColumnWidth(1, 120).setColumnWidth(2, 200).setColumnWidth(3, 160)
       .setColumnWidth(4, 200).setColumnWidth(5, 140)
-      .setColumnWidth(6, 350).setColumnWidth(7, 350).setColumnWidth(8, 300);
+      .setColumnWidth(6, 350).setColumnWidth(7, 350).setColumnWidth(8, 300).setColumnWidth(9, 140);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -755,10 +789,11 @@ function salvarEnvio(dados) {
     new Date(),
     enviados.join(' | '),
     pendentes.join(' | '),
-    dados.pastaUrl     || ''
+    dados.pastaUrl     || '',
+    dados.ctps         || ''
   ]);
 
-  return pendentes;
+  return { enviados: enviados, pendentes: pendentes };
 }
 
 function atualizarEnvio(token, novosEnviados, novosPendentes) {
@@ -824,20 +859,168 @@ function listarEnvios() {
 }
 
 function enviarEmailPendencias(dados, pendentes) {
-  var url  = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL');
-  var link = url + '?token=' + dados.token;
-  var lista = pendentes.map(function(p) { return '• ' + p; }).join('\n');
+  var url          = PropertiesService.getScriptProperties().getProperty('WEBAPP_URL');
+  var link         = url + '?token=' + dados.token;
+  var primeiroNome = (dados.nomeCompleto || '').split(' ')[0];
+
+  var OBRIGATORIOS = [
+    'FOTO 3×4', 'ATESTADO MÉDICO ADMISSIONAL', 'CARTEIRA DE IDENTIDADE',
+    'CPF', 'TÍTULO DE ELEITOR', 'PIS / PASEP', 'DECLARAÇÃO DE ESCOLARIDADE',
+    'CARTEIRA DE TRABALHO (foto, dados cadastrais e último contrato)',
+    'COMPROVANTE DE RESIDÊNCIA ATUAL', 'ANTECEDENTES CRIMINAIS'
+  ];
+
+  var pObrig = pendentes.filter(function(p) { return OBRIGATORIOS.indexOf(p) !== -1; });
+  var pOpc   = pendentes.filter(function(p) { return OBRIGATORIOS.indexOf(p) === -1; });
+
+  function secaoHtml(titulo, cor, itens) {
+    if (!itens.length) return '';
+    return '<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:' + cor + ';margin:18px 0 6px">' + titulo + '</p>' +
+      '<ul style="margin:0;padding-left:20px">' +
+      itens.map(function(p) { return '<li style="font-size:13px;color:#444;margin-bottom:5px">' + p + '</li>'; }).join('') +
+      '</ul>';
+  }
+
+  var listaTxt = pendentes.map(function(p) { return '• ' + p; }).join('\n');
+
+  var html =
+    '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>' +
+    'body{margin:0;padding:0;background:#f0f2f5;font-family:Arial,Helvetica,sans-serif}' +
+    '.wrap{max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.10)}' +
+    '.hdr{background:linear-gradient(135deg,#1a237e 0%,#283593 100%);padding:32px 36px;color:#fff}' +
+    '.hdr h1{margin:0;font-size:22px;font-weight:700;letter-spacing:.2px}' +
+    '.hdr p{margin:6px 0 0;font-size:13px;opacity:.8}' +
+    '.body{padding:32px 36px}' +
+    '.text{font-size:14px;color:#555;line-height:1.75;margin-bottom:20px}' +
+    '.pend-box{border:1px solid #e8eaf6;border-left:4px solid #e65100;border-radius:6px;padding:18px 20px;margin-bottom:24px;background:#fff8f5}' +
+    '.btn-wrap{text-align:center;margin:28px 0}' +
+    '.btn{display:inline-block;background:#1a237e;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:.3px}' +
+    '.link-texto{font-size:12px;color:#888;margin-top:20px;word-break:break-all;font-family:monospace}' +
+    '.ftr{padding:20px 36px;font-size:12px;color:#aaa;border-top:1px solid #f0f0f0;line-height:1.7}' +
+    '.ftr a{color:#1a237e;text-decoration:none}' +
+    '</style></head><body>' +
+    '<div class="wrap">' +
+    '<div class="hdr"><h1>BRASAS English Course</h1><p>Formulário de Pré-Admissão</p></div>' +
+    '<div class="body">' +
+    '<p class="text">Olá, <strong>' + dados.nomeCompleto + '</strong>.</p>' +
+    '<p class="text">Recebemos seu formulário de pré-admissão. Para dar continuidade ao processo, os documentos abaixo ainda precisam ser enviados:</p>' +
+    '<div class="pend-box">' +
+    secaoHtml('Obrigatórios', '#c62828', pObrig) +
+    secaoHtml('Opcionais',    '#e65100', pOpc) +
+    '</div>' +
+    '<p class="text">Acesse o mesmo link pelo qual você preencheu o formulário para completar o envio:</p>' +
+    '<div class="btn-wrap"><a href="' + link + '" class="btn">Completar envio →</a></div>' +
+    '<p class="link-texto">Se o botão não funcionar, copie e cole o endereço abaixo no seu navegador:<br>' + link + '</p>' +
+    '</div>' +
+    '<div class="ftr">Dúvidas? Entre em contato com o DP: <a href="mailto:dp@brasas.com">dp@brasas.com</a><br>Este é um e-mail automático do sistema de admissão da BRASAS English Course.</div>' +
+    '</div></body></html>';
 
   MailApp.sendEmail({
     to:      dados.email,
-    subject: 'BRASAS – Documentos pendentes para sua pré-admissão',
+    name:    'BRASAS Departamento Pessoal',
+    replyTo: 'dp@brasas.com',
+    subject: 'BRASAS – Documentos pendentes | ' + primeiroNome,
+    htmlBody: html,
     body:    'Olá, ' + dados.nomeCompleto + '!\n\n' +
-             'Recebemos seu formulário de pré-admissão. Porém, os seguintes documentos ainda estão pendentes:\n\n' +
-             lista + '\n\n' +
-             'Acesse o mesmo link abaixo para completar o envio:\n' +
-             link + '\n\n' +
-             'Em caso de dúvidas: dp@brasas.com\n\n' +
-             'Equipe BRASAS DP'
+             'Recebemos seu formulário de pré-admissão. Os seguintes documentos ainda estão pendentes:\n\n' +
+             listaTxt + '\n\n' +
+             'Acesse o link abaixo para completar o envio:\n' + link + '\n\n' +
+             'Dúvidas: dp@brasas.com\n\nBRASAS Departamento Pessoal'
+  });
+}
+
+function enviarEmailDiretor(dados, enviados, pendentes) {
+  var unidade  = dados.nomeUnidade || dados.unidade || '';
+  var emails   = (EMAILS_DIRETORES[unidade] || []).slice();
+  if (emails.indexOf('dp@brasas.com') === -1) emails.push('dp@brasas.com');
+  if (emails.length === 0) return;
+
+  var candidato = dados.nomeCompleto || '';
+  var pastaUrl  = dados.pastaUrl || '';
+  var completo  = pendentes.length === 0;
+
+  var OBRIG = [
+    'FOTO 3×4', 'ATESTADO MÉDICO ADMISSIONAL', 'CARTEIRA DE IDENTIDADE',
+    'CPF', 'TÍTULO DE ELEITOR', 'PIS / PASEP', 'DECLARAÇÃO DE ESCOLARIDADE',
+    'CARTEIRA DE TRABALHO (foto, dados cadastrais e último contrato)',
+    'COMPROVANTE DE RESIDÊNCIA ATUAL', 'ANTECEDENTES CRIMINAIS'
+  ];
+  var pObrig = pendentes.filter(function(p) { return OBRIG.indexOf(p) !== -1; });
+  var pOpc   = pendentes.filter(function(p) { return OBRIG.indexOf(p) === -1; });
+
+  function itemHtml(texto, cor, icone) {
+    return '<li style="font-size:13px;color:#444;margin-bottom:4px">' +
+      '<span style="color:' + cor + ';font-weight:700">' + icone + '</span> ' + texto + '</li>';
+  }
+  function secaoHtml(titulo, cor, itens) {
+    if (!itens.length) return '';
+    return '<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:' + cor + ';margin:14px 0 5px">' + titulo + '</p>' +
+      '<ul style="margin:0;padding-left:18px">' +
+      itens.map(function(p) { return itemHtml(p, cor, cor === '#2e7d32' ? '✓' : '●'); }).join('') +
+      '</ul>';
+  }
+
+  var statusBadge = completo
+    ? '<span style="display:inline-block;background:#e8f5e9;color:#2e7d32;font-size:12px;font-weight:700;padding:3px 12px;border-radius:10px;margin-bottom:14px">✓ Processo completo</span>'
+    : '<span style="display:inline-block;background:#fff3e0;color:#e65100;font-size:12px;font-weight:700;padding:3px 12px;border-radius:10px;margin-bottom:14px">⚠ Documentos pendentes</span>';
+
+  var html =
+    '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>' +
+    'body{margin:0;padding:0;background:#f0f2f5;font-family:Arial,Helvetica,sans-serif}' +
+    '.wrap{max-width:600px;margin:32px auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.10)}' +
+    '.hdr{background:linear-gradient(135deg,#1a237e 0%,#283593 100%);padding:32px 36px;color:#fff}' +
+    '.hdr h1{margin:0;font-size:22px;font-weight:700;letter-spacing:.2px}' +
+    '.hdr p{margin:6px 0 0;font-size:13px;opacity:.8}' +
+    '.body{padding:32px 36px}' +
+    '.text{font-size:14px;color:#555;line-height:1.75;margin-bottom:18px}' +
+    '.doc-box{border:1px solid #e8eaf6;border-radius:7px;padding:18px 20px;margin-bottom:16px;background:#fafbff}' +
+    '.pend-box{border:1px solid #ffe0b2;border-left:4px solid #e65100;border-radius:6px;padding:16px 20px;margin-bottom:20px;background:#fff8f5}' +
+    '.btn-wrap{text-align:center;margin:24px 0}' +
+    '.btn{display:inline-block;background:#1a237e;color:#fff;padding:13px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:.3px}' +
+    '.ftr{padding:18px 36px;font-size:12px;color:#aaa;border-top:1px solid #f0f0f0;line-height:1.7}' +
+    '.ftr a{color:#1a237e;text-decoration:none}' +
+    '</style></head><body><div class="wrap">' +
+    '<div class="hdr"><h1>BRASAS English Course</h1><p>Notificação de Pré-Admissão</p></div>' +
+    '<div class="body">' +
+    '<p class="text">Um formulário de pré-admissão foi enviado para a unidade <strong>' + unidade + '</strong>:</p>' +
+    '<div class="doc-box">' +
+    '<p style="margin:0 0 10px;font-size:15px;font-weight:700;color:#1a237e">' + candidato + '</p>' +
+    statusBadge +
+    secaoHtml('Documentos enviados', '#2e7d32', enviados) +
+    '</div>' +
+    (pendentes.length
+      ? '<div class="pend-box">' +
+        secaoHtml('Obrigatórios pendentes', '#c62828', pObrig) +
+        secaoHtml('Opcionais pendentes',    '#e65100', pOpc) +
+        '</div>'
+      : '') +
+    (pastaUrl
+      ? '<div class="btn-wrap"><a href="' + pastaUrl + '" class="btn">📁 Abrir pasta no Drive</a></div>'
+      : '') +
+    '</div>' +
+    '<div class="ftr">Notificação automática do sistema de pré-admissão BRASAS. &nbsp;|&nbsp; <a href="mailto:dp@brasas.com">dp@brasas.com</a></div>' +
+    '</div></body></html>';
+
+  var assunto = completo
+    ? 'BRASAS – Pré-admissão completa | ' + candidato + ' (' + unidade + ')'
+    : 'BRASAS – Formulário de pré-admissão recebido | ' + candidato + ' (' + unidade + ')';
+
+  var corpo = (completo ? '[COMPLETO] ' : '[PENDENTE] ') + 'Pré-admissão de ' + candidato + ' – ' + unidade + '\n\n' +
+    (enviados.length ? 'Enviados:\n' + enviados.map(function(d){return '• '+d;}).join('\n') + '\n\n' : '') +
+    (pendentes.length ? 'Pendentes:\n' + pendentes.map(function(d){return '• '+d;}).join('\n') + '\n\n' : '') +
+    (pastaUrl ? 'Drive: ' + pastaUrl : '');
+
+  MailApp.sendEmail({
+    to:      emails.join(','),
+    name:    'BRASAS Departamento Pessoal',
+    replyTo: 'dp@brasas.com',
+    subject: assunto,
+    htmlBody: html,
+    body:    corpo
   });
 }
 
@@ -882,6 +1065,8 @@ function enviarEmailAdmissao(email, nome, unidade, link) {
 
   MailApp.sendEmail({
     to:       email,
+    name:     'BRASAS Departamento Pessoal',
+    replyTo:  'dp@brasas.com',
     subject:  'BRASAS – Formulário de pré-admissão | ' + primeiroNome,
     htmlBody: html,
     body:     'Olá, ' + nome + '.\n\n' +
@@ -981,7 +1166,7 @@ function getDadosParaContrato(token) {
   var envio      = null;
   for (var i = 1; i < enviosData.length; i++) {
     if (String(enviosData[i][0]).trim() === String(token).trim()) {
-      envio = { email: String(enviosData[i][3] || ''), pastaUrl: String(enviosData[i][7] || '') };
+      envio = { email: String(enviosData[i][3] || ''), pastaUrl: String(enviosData[i][7] || ''), ctps: String(enviosData[i][8] || '') };
       break;
     }
   }
@@ -1005,6 +1190,7 @@ function getDadosParaContrato(token) {
     endereco:     dadosUnid.endereco || '',
     cargo:        solDados.cargo        || '',
     jornada:      solDados.jornada      || '',
+    ctps:         envio ? envio.ctps    : '',
     dataAdmissao: solDados.dataAdmissao || ''
   };
 }
@@ -1097,7 +1283,6 @@ function gerarEEnviarContrato(token, ctps, salario, salarioExtenso, cargo, jorna
 
     var contratoId  = criarContratoParaAssinar(dadosContrato, pasta);
     var contratoUrl = DriveApp.getFileById(contratoId).getUrl();
-    var requestId   = _chamarApiAssinatura(contratoId, dadosBase.email, dadosBase.candidato);
 
     var sh = getAssinaturasSheet();
     sh.appendRow([
@@ -1105,18 +1290,81 @@ function gerarEEnviarContrato(token, ctps, salario, salarioExtenso, cargo, jorna
       dadosBase.candidato,
       dadosBase.email,
       dadosBase.unidade,
-      requestId || '',
+      '',
       contratoId,
-      requestId ? 'Pendente' : 'Erro API',
+      'Gerado',
       new Date(),
       ''
     ]);
 
-    return { sucesso: true, contratoUrl: contratoUrl, requestId: requestId };
+    return { sucesso: true, contratoUrl: contratoUrl };
   } catch (e) {
     Logger.log('gerarEEnviarContrato: ' + e.toString());
     return { sucesso: false, erro: e.message };
   }
+}
+
+function gerarCartaAberturaConta(dados, solDados, pasta) {
+  var unidade   = dados.nomeUnidade || dados.unidade;
+  var dadosUnid = UNIDADES_DADOS[unidade] || {};
+
+  var meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  var hoje  = new Date();
+  var dataHoje = hoje.getDate() + ' de ' + meses[hoje.getMonth()] + ' de ' + hoje.getFullYear();
+
+  var enderecoFunc = [
+    dados.ruaNumeroResidencia,
+    dados.bairroResidencia,
+    dados.cepResidencia ? 'CEP: ' + dados.cepResidencia : ''
+  ].filter(Boolean).join(' - ');
+
+  var vars = {
+    '{{DATA_HOJE}}':        dataHoje,
+    '{{AGENCIA}}':          dadosUnid.agencia   || '',
+    '{{NOME}}':             dados.nomeCompleto  || '',
+    '{{FUNCAO}}':           solDados.cargo      || '',
+    '{{CPF}}':              dados.cpf           || '',
+    '{{ENDERECO}}':         enderecoFunc,
+    '{{ADMISSAO}}':         solDados.dataAdmissao || '',
+    '{{RAZAO_SOCIAL}}':     UNIDADES[unidade]   || unidade,
+    '{{CNPJ}}':             dadosUnid.cnpj      || '',
+    '{{ENDERECO_EMPRESA}}': dadosUnid.endereco  || '',
+    '{{CONTA}}':            dadosUnid.conta     || ''
+  };
+
+  var nome   = (dados.nomeCompleto || '').toUpperCase();
+  var copia  = DriveApp.getFileById(CARTA_CONTA_TEMPLATE_ID)
+                 .makeCopy('CARTA ABERTURA CONTA - ' + nome, pasta);
+  var doc    = DocumentApp.openById(copia.getId());
+  var body   = doc.getBody();
+
+  Object.keys(vars).forEach(function(k) { body.replaceText(k, vars[k]); });
+  doc.saveAndClose();
+
+  var pdf = copia.getAs(MimeType.PDF);
+  pdf.setName('CARTA ABERTURA CONTA - ' + nome + '.pdf');
+
+  var primeiroNome = (dados.nomeCompleto || '').split(' ')[0];
+
+  MailApp.sendEmail({
+    to:      dados.email,
+    name:    'BRASAS Departamento Pessoal',
+    replyTo: 'dp@brasas.com',
+    subject: 'BRASAS – Carta de abertura de conta salário',
+    htmlBody:
+      '<div style="font-family:Arial,sans-serif;max-width:560px">' +
+      '<div style="background:#1a237e;padding:24px 28px;border-radius:8px 8px 0 0">' +
+      '<h2 style="color:#fff;margin:0;font-size:20px">BRASAS English Course</h2>' +
+      '</div>' +
+      '<div style="background:#fff;padding:28px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px">' +
+      '<p>Olá, <strong>' + primeiroNome + '</strong>!</p>' +
+      '<p>Segue em anexo a carta para abertura de conta salário no <strong>Banco Itaú</strong>.</p>' +
+      '<p style="color:#555;font-size:13px">Em caso de dúvidas, entre em contato: <a href="mailto:dp@brasas.com" style="color:#1a237e">dp@brasas.com</a></p>' +
+      '</div></div>',
+    attachments: [pdf]
+  });
+
+  Logger.log('[gerarCartaAberturaConta] Carta enviada para ' + dados.email + ' | unidade=' + unidade);
 }
 
 function verificarStatusAssinaturas() {

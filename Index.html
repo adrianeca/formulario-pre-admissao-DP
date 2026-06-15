@@ -220,8 +220,8 @@
     .tela-sucesso {
       display: none; position: fixed; inset: 0;
       background: #f0f2f5; z-index: 99;
-      flex-direction: column; align-items: center; justify-content: center;
-      padding: 32px; text-align: center;
+      flex-direction: column; align-items: center; justify-content: flex-start;
+      padding: 40px 32px; text-align: center; overflow-y: auto;
     }
     .tela-sucesso.ativo { display: flex; }
     .sucesso-icone { font-size: 72px; margin-bottom: 20px; }
@@ -313,9 +313,15 @@
       </div>
 
       <div class="campo">
-        <label for="ruaNumeroResidencia">Rua e número <span class="req">*</span></label>
-        <input type="text" id="ruaNumeroResidencia" placeholder="Ex: Rua das Flores, 123">
-        <div class="msg-erro" id="err-ruaNumeroResidencia">Informe a rua e o número.</div>
+        <label for="ruaResidencia">Rua <span class="req">*</span></label>
+        <input type="text" id="ruaResidencia" placeholder="Ex: Rua das Flores">
+        <div class="msg-erro" id="err-ruaResidencia">Informe a rua.</div>
+      </div>
+
+      <div class="campo">
+        <label for="numeroComplementoResidencia">Número e complemento <span class="req">*</span></label>
+        <input type="text" id="numeroComplementoResidencia" placeholder="Ex: 123, Apto 4">
+        <div class="msg-erro" id="err-numeroComplementoResidencia">Informe o número.</div>
       </div>
 
       <div class="campo">
@@ -397,6 +403,10 @@
           <input type="text" id="contaBanco" placeholder="Ex: 12345-6">
           <div class="msg-erro" id="err-contaBanco">Informe o número da conta.</div>
         </div>
+      </div>
+
+      <div id="avisoContaNao" style="display:none;margin-top:14px;padding:12px 16px;background:#e3f2fd;border-left:4px solid #1565c0;border-radius:7px;font-size:13px;color:#0d47a1">
+        Após o envio do formulário, você receberá um <strong>e-mail com uma carta de abertura de conta no Itaú</strong>. Apresente essa carta na agência mais próxima para abrir sua conta sem custo.
       </div>
     </div>
 
@@ -495,12 +505,13 @@
 
 <script>
   // ── Dados injetados pelo servidor ─────────────────────────────────────────
-  var _TOKEN        = '<?= TOKEN ?>';
-  var _UNIDADE_ID   = '<?= UNIDADE_ID ?>';
-  var _UNIDADE_NOME = '<?= UNIDADE_NOME ?>';
-  var _STATUS       = '<?= STATUS ?>';
-  var _CANDIDATO    = '<?= CANDIDATO ?>';
-  var _PENDENTES    = <?!= PENDENTES ?>;
+  var _TOKEN           = '<?= TOKEN ?>';
+  var _UNIDADE_ID      = '<?= UNIDADE_ID ?>';
+  var _UNIDADE_NOME    = '<?= UNIDADE_NOME ?>';
+  var _STATUS          = '<?= STATUS ?>';
+  var _CANDIDATO       = '<?= CANDIDATO ?>';
+  var _PENDENTES       = <?!= PENDENTES ?>;
+  var _EMAIL_CANDIDATO = '<?= EMAIL_CANDIDATO ?>';
 
   // ── Definição dos documentos ──────────────────────────────────────────────
   var DOCS = [
@@ -513,7 +524,7 @@
     { id: 'reservista',    rotulo: 'CERTIFICADO DE RESERVISTA',                               req: false },
     { id: 'escolaridade',  rotulo: 'DECLARAÇÃO DE ESCOLARIDADE',                              req: true  },
     { id: 'casamento',     rotulo: 'CERTIDÃO DE CASAMENTO',                                   req: false },
-    { id: 'ctps',          rotulo: 'CARTEIRA DE TRABALHO (foto, dados cadastrais e último contrato)', req: true  },
+    { id: 'ctps',          rotulo: 'CARTEIRA DE TRABALHO (foto, dados cadastrais e último contrato)', req: true, ctpsInput: true },
     { id: 'certNasc',      rotulo: 'CERTIDÃO DE NASCIMENTO DOS FILHOS MENORES DE 14 ANOS',   req: false },
     { id: 'vacinacao',     rotulo: 'CARTÃO DE VACINAÇÃO DOS MENORES DE 7 ANOS',              req: false },
     { id: 'compEscolar',   rotulo: 'COMPROVANTE ESCOLAR DE FILHOS DE 7 A 14 ANOS',           req: false },
@@ -553,6 +564,17 @@
       ? '<div style="font-size:12px;color:#1a237e;background:#e8eaf6;border-radius:6px;padding:8px 12px;margin-bottom:8px;">ℹ️ ' + doc.instrucao + '</div>'
       : '';
 
+    var ctpsInputHtml = doc.ctpsInput
+      ? '<div style="margin-top:12px;padding:12px;background:#f8f9ff;border-radius:7px;border:1.5px solid #e8eaf6">' +
+          '<label style="display:block;font-size:12px;font-weight:700;color:#444;margin-bottom:6px">' +
+            'Número e Série da CTPS <span style="color:#c62828">*</span>' +
+          '</label>' +
+          '<input type="text" id="ctpsNumero" placeholder="Ex: 1234567 / 001-0" ' +
+          'style="width:100%;padding:9px 12px;border:1.5px solid #ddd;border-radius:7px;font-size:13px;">' +
+          '<div id="err-ctpsNumero" style="display:none;font-size:12px;color:#c62828;margin-top:4px">Informe o número da CTPS.</div>' +
+        '</div>'
+      : '';
+
     div.innerHTML =
       '<div class="doc-rotulo">' + doc.rotulo + badge + '</div>' +
       instrucaoHtml +
@@ -561,6 +583,7 @@
       '</label>' +
       '<input type="file" id="file-' + doc.id + '" accept=".jpg,.jpeg,.png,.pdf" multiple>' +
       '<div class="preview-lista" id="preview-' + doc.id + '"></div>' +
+      ctpsInputHtml +
       numHtml +
       '<label class="check-depois" id="check-depois-' + doc.id + '">' +
         '<input type="checkbox" id="depois-' + doc.id + '" onchange="toggleDepois(\'' + doc.id + '\')">' +
@@ -605,6 +628,12 @@
     if (_hp) _hp.textContent = 'Olá, ' + _CANDIDATO + '! Envie os documentos pendentes abaixo.';
     var _btnLabel = document.querySelector('.btn-enviar');
     if (_btnLabel) _btnLabel.textContent = 'Enviar Documentos';
+  }
+
+  // ── Pré-preencher e-mail do candidato (vindo da solicitação do diretor) ──
+  if (_EMAIL_CANDIDATO) {
+    var _emailEl = document.getElementById('email');
+    if (_emailEl) _emailEl.value = _EMAIL_CANDIDATO;
   }
 
   // ── Pré-preencher e travar unidade se veio do token ──────────────────────
@@ -817,7 +846,7 @@
     });
   }
 
-  mascaraCep(document.getElementById('cepResidencia'), 'ruaNumeroResidencia', 'bairroResidencia');
+  mascaraCep(document.getElementById('cepResidencia'), 'ruaResidencia', 'bairroResidencia');
 
   var _elCepVT = document.getElementById('cepVT');
   if (_elCepVT) mascaraCep(_elCepVT, 'ruaNumeroVT', 'bairroVT');
@@ -863,11 +892,14 @@
   });
 
   function toggleDadosBancarios(radio) {
-    var sec = document.getElementById('secaoBanco');
+    var sec     = document.getElementById('secaoBanco');
+    var avisoNao = document.getElementById('avisoContaNao');
     if (radio.value === 'Sim') {
       sec.classList.add('visivel');
+      if (avisoNao) avisoNao.style.display = 'none';
     } else {
       sec.classList.remove('visivel');
+      if (avisoNao) avisoNao.style.display = 'block';
       ['agenciaBanco','contaBanco'].forEach(function(f) {
         var el = document.getElementById(f);
         if (el) { el.value = ''; el.classList.remove('invalido'); }
@@ -948,7 +980,7 @@
       mostrarErro('telefone', !telOk); if (!telOk) ok = false;
 
       // Endereço de residência (sempre obrigatório)
-      ['cepResidencia','ruaNumeroResidencia','bairroResidencia'].forEach(function(f) {
+      ['cepResidencia','ruaResidencia','numeroComplementoResidencia','bairroResidencia'].forEach(function(f) {
         var v = document.getElementById(f).value.trim();
         mostrarErro(f, !v); if (!v) ok = false;
       });
@@ -987,6 +1019,19 @@
           var v = document.getElementById(f).value.trim();
           mostrarErro(f, !v); if (!v) ok = false;
         });
+      }
+    }
+
+    // Campo CTPS obrigatório (número), a menos que "enviarei depois" esteja marcado
+    var ctpsNumEl = document.getElementById('ctpsNumero');
+    if (ctpsNumEl) {
+      var ctpsDepoisEl = document.getElementById('depois-ctps');
+      var ctpsDepois   = ctpsDepoisEl && ctpsDepoisEl.checked;
+      if (!ctpsDepois) {
+        var ctpsOk = ctpsNumEl.value.trim() !== '';
+        ctpsNumEl.style.borderColor = ctpsOk ? '#ddd' : '#c62828';
+        document.getElementById('err-ctpsNumero').style.display = ctpsOk ? 'none' : 'block';
+        if (!ctpsOk) ok = false;
       }
     }
 
@@ -1072,21 +1117,60 @@
       console.log('[aoSucesso]', JSON.stringify(res));
       document.getElementById('overlayLoading').classList.remove('ativo');
       if (res.sucesso) {
-        var msg = document.querySelector('.sucesso-msg');
-        if (res.pendentes && res.pendentes.length > 0) {
-          document.querySelector('.sucesso-titulo').textContent = 'Recebido!';
-          var instrucaoRetorno = res.emailEnviado
-            ? 'Enviamos um e-mail para <strong>' + document.getElementById('email').value.trim() + '</strong> com o link para completar o envio.'
-            : 'Para enviar os documentos restantes, acesse o link abaixo:<br><br>' +
-              '<a href="' + (res.linkRetorno || '') + '" style="word-break:break-all;color:#1a237e;">' + (res.linkRetorno || '') + '</a>';
-          msg.innerHTML = 'Seus documentos foram recebidos.<br><br>' +
-            '<strong>Ainda pendentes:</strong><br>' +
-            res.pendentes.map(function(p) { return '• ' + p; }).join('<br>') +
-            '<br><br>' + instrucaoRetorno;
-        } else if (_STATUS === 'incompleto') {
-          document.querySelector('.sucesso-titulo').textContent = 'Processo completo!';
-          msg.innerHTML = 'Todos os documentos foram recebidos com sucesso.<br>Em breve entraremos em contato.';
+        var msg     = document.querySelector('.sucesso-msg');
+        var titulo  = document.querySelector('.sucesso-titulo');
+        var enviados  = res.enviados  || [];
+        var pendentes = res.pendentes || [];
+
+        function isReq(rotulo) {
+          var d = DOCS.filter(function(x) { return x.rotulo === rotulo; })[0];
+          return d ? d.req : false;
         }
+        var reqEnv  = enviados.filter(function(r)  { return  isReq(r); });
+        var opcEnv  = enviados.filter(function(r)  { return !isReq(r); });
+        var reqPend = pendentes.filter(function(r) { return  isReq(r); });
+        var opcPend = pendentes.filter(function(r) { return !isReq(r); });
+
+        function linhaEnv(p)  { return '<div style="margin:2px 0"><span style="color:#2e7d32;font-weight:700">✓</span> ' + p + '</div>'; }
+        function linhaPend(p) { return '<div style="margin:2px 0"><span style="color:#e65100;font-weight:700">●</span> ' + p + ' <span style="background:#fbe9e7;color:#c62828;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;vertical-align:middle">Não enviado</span></div>'; }
+
+        function secao(titulo, itensEnv, itensPend) {
+          if (itensEnv.length === 0 && itensPend.length === 0) return '';
+          var s = '<div style="text-align:left;margin-bottom:16px">';
+          s += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#888;margin-bottom:6px">' + titulo + '</div>';
+          itensEnv.forEach(function(p)  { s += linhaEnv(p);  });
+          itensPend.forEach(function(p) { s += linhaPend(p); });
+          s += '</div>';
+          return s;
+        }
+
+        var html = '<div style="font-size:13px;line-height:1.6;max-width:440px">';
+        html += secao('Obrigatórios', reqEnv, reqPend);
+        html += secao('Opcionais',    opcEnv, opcPend);
+
+        if (pendentes.length > 0) {
+          titulo.textContent = 'Recebido!';
+          var emailEl = document.getElementById('email');
+          var emailVal = emailEl ? emailEl.value.trim() : '';
+          var instrucao = (res.emailEnviado && emailVal)
+            ? 'Enviamos um e-mail para <strong>' + emailVal + '</strong> com o link para completar o envio.'
+            : 'Para enviar os documentos restantes, acesse o mesmo link pelo qual você acessou este formulário.';
+          if (!res.emailEnviado && res.linkRetorno) {
+            instrucao = 'Para enviar os documentos restantes, acesse o link abaixo:<br><br>' +
+              '<a href="' + res.linkRetorno + '" style="word-break:break-all;color:#1a237e;">' + res.linkRetorno + '</a>';
+          }
+          html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #ddd;font-size:14px">' + instrucao + '</div>';
+        } else {
+          titulo.textContent = _STATUS === 'incompleto' ? 'Processo completo!' : 'Documentos recebidos!';
+          html += '<div style="margin-top:16px;padding:14px 16px;background:#e8f5e9;border-left:4px solid #2e7d32;border-radius:7px;font-size:14px;color:#1b5e20">' +
+            '<strong>Todos os documentos obrigatórios foram recebidos com sucesso.</strong><br><br>' +
+            'O Departamento Pessoal irá analisar as informações e entrará em contato em breve. ' +
+            'Caso haja alguma pendência ou dúvida, você será avisado pelo e-mail informado no formulário.' +
+            '</div>';
+        }
+
+        html += '</div>';
+        msg.innerHTML = html;
         document.getElementById('telaSucesso').classList.add('ativo');
       } else {
         document.getElementById('btnEnviar').disabled = false;
@@ -1109,10 +1193,11 @@
       }
       var docsComBase64 = (documentos || []).filter(function(d) { return !!d.base64; });
       console.log('[submit incompleto] docs total=' + (documentos || []).length + ' com arquivo=' + docsComBase64.length + ' token=' + _TOKEN);
+      var ctpsValCompl = (document.getElementById('ctpsNumero') || {value:''}).value.trim();
       google.script.run
         .withSuccessHandler(aoSucesso)
         .withFailureHandler(aoErro)
-        .completarDocumentos(_TOKEN, documentos);
+        .completarDocumentos(_TOKEN, documentos, ctpsValCompl);
     } else {
       var vtSim = document.querySelector('input[name="valeTransporte"]:checked').value === 'Sim';
       var dados = {
@@ -1130,13 +1215,14 @@
         valeTransporte:  document.querySelector('input[name="valeTransporte"]:checked').value,
         bilheteUnico:    vtSim ? (document.querySelector('input[name="bilheteUnico"]:checked') || {value:''}).value : '',
         cepResidencia:       document.getElementById('cepResidencia').value.trim(),
-        ruaNumeroResidencia: document.getElementById('ruaNumeroResidencia').value.trim(),
+        ruaNumeroResidencia: (function() { var r = document.getElementById('ruaResidencia').value.trim(); var n = document.getElementById('numeroComplementoResidencia').value.trim(); return r + (n ? ', ' + n : ''); })(),
         bairroResidencia:    document.getElementById('bairroResidencia').value.trim(),
         cepOrigem:       vtSim ? (document.getElementById('mesmoEnderecoVT').checked ? document.getElementById('cepResidencia').value.trim() : document.getElementById('cepVT').value.trim()) : '',
-        ruaNumeroOrigem: vtSim ? (document.getElementById('mesmoEnderecoVT').checked ? document.getElementById('ruaNumeroResidencia').value.trim() : document.getElementById('ruaNumeroVT').value.trim()) : '',
+        ruaNumeroOrigem: vtSim ? (document.getElementById('mesmoEnderecoVT').checked ? (function() { var r = document.getElementById('ruaResidencia').value.trim(); var n = document.getElementById('numeroComplementoResidencia').value.trim(); return r + (n ? ', ' + n : ''); })() : document.getElementById('ruaNumeroVT').value.trim()) : '',
         bairroOrigem:    vtSim ? (document.getElementById('mesmoEnderecoVT').checked ? document.getElementById('bairroResidencia').value.trim() : document.getElementById('bairroVT').value.trim()) : '',
         modalTransporte: vtSim ? document.getElementById('modalTransporte').value.trim() : '',
         qtdConducoes:    vtSim ? document.getElementById('qtdConducoes').value.trim() : '',
+        ctps:            (document.getElementById('ctpsNumero') || {value:''}).value.trim(),
         documentos:      documentos
       };
       google.script.run

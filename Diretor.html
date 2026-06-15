@@ -46,6 +46,30 @@
     .msg-erro { display: none; font-size: 12px; color: #c62828; margin-top: 5px; }
     .msg-erro.visivel { display: block; }
 
+    /* ── Jornada estruturada ── */
+    .campo input[type="time"] {
+      width: 110px; padding: 10px 10px;
+      border: 1.5px solid #ddd; border-radius: 7px;
+      font-size: 14px; background: #fff; color: #333;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .campo input[type="time"]:focus {
+      outline: none; border-color: #3949ab;
+      box-shadow: 0 0 0 3px rgba(57,73,171,.12);
+    }
+    .campo input[type="time"].invalido { border-color: #c62828; }
+    .jornada-bloco { background: #f8f9ff; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+    .jornada-linha { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+    .jornada-dia { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase;
+                   letter-spacing: .4px; min-width: 58px; padding-bottom: 10px; }
+    .horario-item { display: flex; flex-direction: column; gap: 4px; }
+    .horario-rotulo { font-size: 11px; color: #888; font-weight: 500; }
+    .horario-sep { font-size: 13px; color: #999; padding-bottom: 10px; }
+    .check-sab { display: flex; align-items: center; gap: 8px; margin: 14px 0 0;
+                 cursor: pointer; font-size: 13px; color: #444; font-weight: 600; }
+    .check-sab input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #1a237e; flex-shrink: 0; }
+    .bloco-sabado { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #dde; }
+
     .btn-enviar {
       width: 100%; padding: 14px; background: #1a237e; color: #fff;
       border: none; border-radius: 8px; font-size: 16px; font-weight: 700;
@@ -131,9 +155,46 @@
     </div>
 
     <div class="campo">
-      <label for="jornada">Jornada de Trabalho <span class="req">*</span></label>
-      <input type="text" id="jornada" placeholder="Ex: 08h às 17h / escala 6x1 / etc.">
-      <span class="msg-erro" id="err-jornada">Informe a jornada de trabalho.</span>
+      <label>Jornada de Trabalho <span class="req">*</span></label>
+
+      <div class="jornada-bloco">
+        <div class="jornada-linha">
+          <span class="jornada-dia">Seg – Sex</span>
+          <div class="horario-item">
+            <span class="horario-rotulo">Entrada</span>
+            <input type="time" id="jornadaEntrada">
+          </div>
+          <span class="horario-sep">às</span>
+          <div class="horario-item">
+            <span class="horario-rotulo">Saída</span>
+            <input type="time" id="jornadaSaida">
+          </div>
+        </div>
+
+        <label class="check-sab">
+          <input type="checkbox" id="trabalhaSabado" onchange="toggleSabado()">
+          Trabalha aos sábados
+        </label>
+
+        <div class="bloco-sabado" id="blocoSabado" style="display:none">
+          <div class="jornada-linha">
+            <span class="jornada-dia">Sábado</span>
+            <div class="horario-item">
+              <span class="horario-rotulo">Entrada</span>
+              <input type="time" id="jornadaSabEntrada">
+            </div>
+            <span class="horario-sep">às</span>
+            <div class="horario-item">
+              <span class="horario-rotulo">Saída</span>
+              <input type="time" id="jornadaSabSaida">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <input type="text" id="jornadaObs" placeholder="Observação: escala especial, variável, etc. (opcional)"
+             style="margin-top:4px">
+      <span class="msg-erro" id="err-jornada">Informe os horários de segunda a sexta.</span>
     </div>
 
     <div class="campo">
@@ -238,26 +299,78 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
   }
 
+  function toggleSabado() {
+    var checked = document.getElementById('trabalhaSabado').checked;
+    document.getElementById('blocoSabado').style.display = checked ? 'block' : 'none';
+    if (!checked) {
+      document.getElementById('jornadaSabEntrada').value = '';
+      document.getElementById('jornadaSabSaida').value   = '';
+    }
+  }
+
+  function fmtHora(h) { return h ? h.replace(':', 'h') : ''; }
+
+  function buildJornada() {
+    var ent = document.getElementById('jornadaEntrada').value;
+    var sai = document.getElementById('jornadaSaida').value;
+    var str = 'Seg–Sex, ' + fmtHora(ent) + ' às ' + fmtHora(sai);
+    if (document.getElementById('trabalhaSabado').checked) {
+      var sEnt = document.getElementById('jornadaSabEntrada').value;
+      var sSai = document.getElementById('jornadaSabSaida').value;
+      str += ' / Sáb, ' + fmtHora(sEnt) + ' às ' + fmtHora(sSai);
+    }
+    var obs = document.getElementById('jornadaObs').value.trim();
+    if (obs) str += ' (' + obs + ')';
+    return str;
+  }
+
+  function jornadaValida() {
+    var ent = document.getElementById('jornadaEntrada').value;
+    var sai = document.getElementById('jornadaSaida').value;
+    if (!ent || !sai) return false;
+    if (document.getElementById('trabalhaSabado').checked) {
+      var sEnt = document.getElementById('jornadaSabEntrada').value;
+      var sSai = document.getElementById('jornadaSabSaida').value;
+      if (!sEnt || !sSai) return false;
+    }
+    return true;
+  }
+
+  function marcarErroJornada(mostrar) {
+    var ids = ['jornadaEntrada', 'jornadaSaida'];
+    if (document.getElementById('trabalhaSabado').checked) {
+      ids.push('jornadaSabEntrada', 'jornadaSabSaida');
+    }
+    ids.forEach(function(id) {
+      var el = document.getElementById(id);
+      mostrar && !el.value ? el.classList.add('invalido') : el.classList.remove('invalido');
+    });
+    var err = document.getElementById('err-jornada');
+    mostrar ? err.classList.add('visivel') : err.classList.remove('visivel');
+  }
+
   function enviar() {
     var unidade = document.getElementById('unidade').value;
     var nome    = document.getElementById('nome').value.trim();
     var email   = document.getElementById('email').value.trim();
     var cpf     = document.getElementById('cpf').value;
     var cargo   = document.getElementById('cargo').value;
-    var jornada = document.getElementById('jornada').value.trim();
     var dataAdm = document.getElementById('dataAdmissao').value;
+    var jOk     = jornadaValida();
 
     var dataValida = dataAdm && new Date(dataAdm + 'T12:00:00') >= minDate;
 
-    marcarErro('unidade',     !unidade);
-    marcarErro('nome',        !nome);
-    marcarErro('email',       !validarEmail(email));
-    marcarErro('cpf',         !validarCpf(cpf));
-    marcarErro('cargo',       !cargo);
-    marcarErro('jornada',     !jornada);
+    marcarErro('unidade',      !unidade);
+    marcarErro('nome',         !nome);
+    marcarErro('email',        !validarEmail(email));
+    marcarErro('cpf',          !validarCpf(cpf));
+    marcarErro('cargo',        !cargo);
+    marcarErroJornada(!jOk);
     marcarErro('dataAdmissao', !dataValida);
 
-    if (!unidade || !nome || !validarEmail(email) || !validarCpf(cpf) || !cargo || !jornada || !dataValida) return;
+    if (!unidade || !nome || !validarEmail(email) || !validarCpf(cpf) || !cargo || !jOk || !dataValida) return;
+
+    var jornada = buildJornada();
 
     document.getElementById('overlay').classList.add('ativo');
     document.getElementById('btnEnviar').disabled = true;

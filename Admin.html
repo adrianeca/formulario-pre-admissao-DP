@@ -270,10 +270,10 @@
     <div class="form-row" style="margin-top:12px">
       <div class="form-group">
         <label for="modalSalario">Salário (R$) <span style="color:#c62828">*</span></label>
-        <input type="text" id="modalSalario" placeholder="Ex: 1.500,00">
+        <input type="text" id="modalSalario" placeholder="Ex: 1.500,00" oninput="autoPreencherExtenso()">
       </div>
       <div class="form-group">
-        <label for="modalSalarioExtenso">Salário por extenso <span style="color:#c62828">*</span></label>
+        <label for="modalSalarioExtenso">Salário por extenso <span style="color:#c62828">*</span> <span style="font-size:11px;color:#888;font-weight:400">(preenchido automaticamente)</span></label>
         <input type="text" id="modalSalarioExtenso" placeholder="Ex: mil e quinhentos reais">
       </div>
     </div>
@@ -354,7 +354,7 @@
     }
 
     var html = '<table><thead><tr>' +
-      '<th>Candidato</th><th>E-mail</th><th>Unidade</th><th>Cargo</th><th>Data Admissão</th>' +
+      '<th>Candidato</th><th>E-mail</th><th>CPF</th><th>Unidade</th><th>Cargo</th><th>Jornada</th><th>Data Admissão</th>' +
       '<th>Solicitado em</th><th>Status</th><th>Ação</th>' +
       '</tr></thead><tbody>';
 
@@ -390,8 +390,10 @@
       html += '<tr>' +
         '<td><strong>' + (esc(s.nome)        || '—') + '</strong></td>' +
         '<td>' + (esc(s.email)               || '—') + '</td>' +
+        '<td style="font-family:monospace;font-size:12px">' + (esc(s.cpf) || '—') + '</td>' +
         '<td>' + (esc(s.unidade)             || '—') + '</td>' +
         '<td>' + (esc(s.cargo)               || '—') + '</td>' +
+        '<td style="font-size:12px;max-width:200px">' + (esc(s.jornada) || '—') + '</td>' +
         '<td>' + (esc(s.dataAdmissao)        || '—') + '</td>' +
         '<td>' + (esc(s.criado)              || '—') + '</td>' +
         '<td>' + badge + '</td>' +
@@ -779,6 +781,7 @@
         document.getElementById('modalContratoInfo').innerHTML = html;
         if (dados.cargo)   document.getElementById('modalCargo').value   = dados.cargo;
         if (dados.jornada) document.getElementById('modalJornada').value = dados.jornada;
+        if (dados.ctps)    document.getElementById('modalCtps').value    = dados.ctps;
       })
       .withFailureHandler(function(err) {
         document.getElementById('modalContratoInfo').innerHTML =
@@ -815,10 +818,7 @@
         btn.textContent = '📄 Gerar Contrato';
         if (res.sucesso) {
           mostrarFeedbackModal('sucesso',
-            '✅ Contrato gerado com sucesso! ' +
-            (res.requestId
-              ? 'Pedido de assinatura digital enviado ao candidato.'
-              : 'Assinatura digital não configurada — o contrato está no Drive aguardando envio manual.') +
+            '✅ Contrato gerado com sucesso! O arquivo está salvo na pasta do candidato no Drive.' +
             ' &nbsp;<a href="' + esc(res.contratoUrl || '') + '" target="_blank" style="color:#1b5e20;font-weight:600">📄 Abrir contrato</a>');
           carregarContratos();
         } else {
@@ -866,17 +866,14 @@
       var badge;
       switch (c.status) {
         case 'Assinado': badge = '<span class="badge badge-assinado">Assinado ✓</span>'; break;
+        case 'Gerado':   badge = '<span class="badge badge-aguard-assin">📄 Gerado</span>'; break;
         case 'Pendente': badge = '<span class="badge badge-aguard-assin">⏳ Aguardando</span>'; break;
-        default:         badge = '<span class="badge badge-erro-api">Erro API</span>';
+        default:         badge = '<span class="badge badge-pendente">' + esc(c.status) + '</span>';
       }
 
       var acoes = '';
       if (c.contratoUrl) {
-        acoes += '<a href="' + esc(c.contratoUrl) + '" target="_blank" class="btn-copiar-link" style="margin-right:6px">📄 Ver</a>';
-      }
-      if (c.status !== 'Assinado') {
-        var t64 = btoa(c.token);
-        acoes += '<button class="btn-acao btn-acao-gerar" style="font-size:11px" onclick="reenviarContrato(\'' + t64 + '\')">↺ Reenviar</button>';
+        acoes += '<a href="' + esc(c.contratoUrl) + '" target="_blank" class="btn-copiar-link">📄 Ver contrato</a>';
       }
 
       html += '<tr>' +
@@ -903,6 +900,43 @@
       })
       .withFailureHandler(function(err) { alert('Erro: ' + err.message); })
       .reenviarPedidoAssinatura(token);
+  }
+
+  // ── Salário por extenso (auto-preenchimento) ───────────────────────────────
+
+  function _blocoExtenso(n) {
+    var UN = ['','um','dois','três','quatro','cinco','seis','sete','oito','nove',
+              'dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+    var DZ = ['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+    var CT = ['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+    if (n === 0) return '';
+    if (n === 100) return 'cem';
+    var p = [];
+    if (n >= 100) { p.push(CT[Math.floor(n/100)]); n = n % 100; }
+    if (n >= 20)  { var d = Math.floor(n/10); var u = n%10; p.push(u ? DZ[d]+' e '+UN[u] : DZ[d]); }
+    else if (n > 0) p.push(UN[n]);
+    return p.join(' e ');
+  }
+
+  function _numExtenso(n) {
+    if (n === 0) return 'zero';
+    var p = [];
+    if (n >= 1000000) { var m = Math.floor(n/1000000); p.push(_blocoExtenso(m)+(m===1?' milhão':' milhões')); n = n%1000000; }
+    if (n >= 1000)    { var k = Math.floor(n/1000); p.push(k===1?'mil':_blocoExtenso(k)+' mil'); n = n%1000; }
+    var r = _blocoExtenso(n); if (r) p.push(r);
+    return p.join(' e ');
+  }
+
+  function autoPreencherExtenso() {
+    var raw = document.getElementById('modalSalario').value.trim();
+    var limpo = raw.replace(/\./g,'').replace(',','.');
+    var num = parseFloat(limpo);
+    if (isNaN(num) || num < 0) return;
+    var inteiro  = Math.floor(num);
+    var cents    = Math.round((num * 100) % 100);
+    var texto    = _numExtenso(inteiro) + (inteiro === 1 ? ' real' : ' reais');
+    if (cents > 0) texto += ' e ' + _numExtenso(cents) + (cents === 1 ? ' centavo' : ' centavos');
+    document.getElementById('modalSalarioExtenso').value = texto;
   }
 
   // Carregamento inicial feito após autenticação bem-sucedida
